@@ -278,7 +278,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --- AUTH ENDPOINTS ---
-  // 1. 6 Haneli PIN Kodu İste (60 saniye ömürlü)
+  // 1. 4 Haneli PIN Kodu İste (60 saniye ömürlü)
   if ((pathname === '/api/auth/send-pin' || pathname === '/api/auth/send-link') && req.method === 'POST') {
     try {
       const body = await parseBody(req);
@@ -296,7 +296,7 @@ const server = http.createServer(async (req, res) => {
 
       return sendJSON(res, {
         success: true,
-        message: `6 haneli giriş kodu ${email} adresinize gönderildi (60 saniye geçerli).`,
+        message: `4 haneli giriş kodu ${email} adresinize gönderildi (60 saniye geçerli).`,
         challengeToken,
         expiresIn: auth.PIN_EXPIRY_SECONDS
       });
@@ -305,7 +305,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // 2. 6 Haneli PIN Kodunu Doğrula
+  // 2. 4 Haneli PIN Kodunu Doğrula
   if (pathname === '/api/auth/verify-pin' && req.method === 'POST') {
     try {
       const body = await parseBody(req);

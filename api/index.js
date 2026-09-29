@@ -311,7 +311,7 @@ module.exports = async (req, res) => {
 
       return sendJSON(res, {
         success: true,
-        message: `6 haneli giriş kodu ${email} adresinize gönderildi (60 saniye geçerli).`,
+        message: `4 haneli giriş kodu ${email} adresinize gönderildi (60 saniye geçerli).`,
         challengeToken,
         expiresIn: auth.PIN_EXPIRY_SECONDS
       });

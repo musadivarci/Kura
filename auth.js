@@ -1,5 +1,5 @@
 // ==========================================
-// AUTH & 6-DIGIT PIN CODE SERVICE (60s Expiry)
+// AUTH & 4-DIGIT PIN CODE SERVICE (60s Expiry)
 // Musa DİVARCI — musadivarci19@gmail.com
 // ==========================================
 
@@ -15,15 +15,15 @@ function hashPin(pin) {
   return crypto.createHmac('sha256', JWT_SECRET).update(pin).digest('hex');
 }
 
-// 6 Haneli Rastgele PIN ve İmzalı Challenge Üretici
+// 4 Haneli Rastgele PIN ve İmzalı Challenge Üretici
 function generatePinChallenge(email) {
   const cleanEmail = (email || '').toLowerCase().trim();
   if (cleanEmail !== ALLOWED_EMAIL) {
     throw new Error("Yetkisiz e-posta adresi! Yalnızca " + ALLOWED_EMAIL + " giriş yapabilir.");
   }
 
-  // 6 Haneli Sayısal Kod (örn: 482915)
-  const pin = Math.floor(100000 + Math.random() * 900000).toString();
+  // 4 Haneli Sayısal Kod (örn: 5824)
+  const pin = Math.floor(1000 + Math.random() * 9000).toString();
   const pinHash = hashPin(pin);
   const nonce = Math.random().toString(36).substring(2, 10);
 
@@ -40,12 +40,12 @@ function generatePinChallenge(email) {
 // PIN Doğrulama
 function verifyPin(pin, challengeToken) {
   if (!pin || !challengeToken) {
-    return { valid: false, error: "Lütfen 6 haneli doğrulama kodunu girin." };
+    return { valid: false, error: "Lütfen 4 haneli doğrulama kodunu girin." };
   }
 
   const cleanPin = pin.toString().replace(/\s+/g, '').trim();
-  if (cleanPin.length !== 6) {
-    return { valid: false, error: "Doğrulama kodu 6 haneli olmalıdır." };
+  if (cleanPin.length !== 4) {
+    return { valid: false, error: "Doğrulama kodu 4 haneli olmalıdır." };
   }
 
   try {
@@ -56,7 +56,7 @@ function verifyPin(pin, challengeToken) {
 
     const expectedHash = hashPin(cleanPin);
     if (decoded.pinHash !== expectedHash) {
-      return { valid: false, error: "Girdiğiniz 6 haneli kod hatalı! Lütfen kontrol edip tekrar deneyin." };
+      return { valid: false, error: "Girdiğiniz 4 haneli kod hatalı! Lütfen kontrol edip tekrar deneyin." };
     }
 
     // Başarılı Giriş -> 30 Günlük Oturum
@@ -98,8 +98,8 @@ function verifySession(sessionToken) {
   }
 }
 
-// 6 Haneli PIN E-Postası Gönderme Fonksiyonu
-async function sendPinEmail(email, pin, magicLinkUrl = '') {
+// 4 Haneli PIN E-Postası Gönderme Fonksiyonu
+async function sendPinEmail(email, pin) {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : 465;
   const user = process.env.SMTP_USER || 'musadivarci19@gmail.com';
@@ -114,14 +114,12 @@ async function sendPinEmail(email, pin, magicLinkUrl = '') {
       auth: { user, pass }
     });
 
-    const formattedPin = `${pin.substring(0, 3)} ${pin.substring(3, 6)}`;
-
     const mailOptions = {
       from: `"Öğrenci Performans Sistemi" <${user}>`,
       to: email,
       subject: `🔑 Giriş Kodunuz: ${pin} (60 Saniye Geçerli)`,
       html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b0f19; color: #f3f4f6; padding: 36px 24px; border-radius: 16px; max-width: 500px; margin: 20px auto; border: 1px solid #1e293b; box-shadow: 0 12px 30px rgba(0,0,0,0.6);">
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b0f19; color: #f3f4f6; padding: 36px 24px; border-radius: 16px; max-width: 480px; margin: 20px auto; border: 1px solid #1e293b; box-shadow: 0 12px 30px rgba(0,0,0,0.6);">
           <div style="text-align: center; margin-bottom: 24px;">
             <span style="font-size: 38px;">🎲</span>
             <h2 style="color: #ffffff; margin: 10px 0 4px 0; font-size: 22px; font-weight: 700;">Öğrenci Performans Sistemi</h2>
@@ -130,14 +128,14 @@ async function sendPinEmail(email, pin, magicLinkUrl = '') {
           
           <p style="font-size: 15px; color: #cbd5e1; line-height: 1.6; margin: 0 0 8px 0;">Merhaba Musa Hocam,</p>
           <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin: 0 0 24px 0;">
-            Sisteme giriş yapmak için aşağıdaki <b>6 haneli tek seferlik kodu</b> bilgisayar ekranındaki alana girin:
+            Sisteme giriş yapmak için aşağıdaki <b>4 haneli tek seferlik kodu</b> bilgisayar ekranına girin:
           </p>
           
-          <!-- PIN CODE BADGE -->
+          <!-- 4-DIGIT PIN CODE BADGE -->
           <div style="text-align: center; margin: 28px 0;">
-            <div style="display: inline-block; background: #131d31; border: 2px solid #4f46e5; border-radius: 16px; padding: 18px 36px; box-shadow: 0 6px 25px rgba(79, 70, 229, 0.35);">
-              <span style="font-family: 'Courier New', Courier, monospace, monospace; font-size: 38px; font-weight: 900; letter-spacing: 8px; color: #ffffff;">
-                ${formattedPin}
+            <div style="display: inline-block; background: #131d31; border: 2px solid #4f46e5; border-radius: 16px; padding: 18px 40px; box-shadow: 0 6px 25px rgba(79, 70, 229, 0.35);">
+              <span style="font-family: 'Courier New', Courier, monospace, monospace; font-size: 44px; font-weight: 900; letter-spacing: 12px; color: #ffffff;">
+                ${pin}
               </span>
             </div>
           </div>
@@ -148,14 +146,6 @@ async function sendPinEmail(email, pin, magicLinkUrl = '') {
             </p>
           </div>
 
-          ${magicLinkUrl ? `
-          <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #1e293b;">
-            <p style="font-size: 12px; color: #64748b; margin-bottom: 10px;">veya doğrudan bu cihazdan açmak isterseniz:</p>
-            <a href="${magicLinkUrl}" style="color: #818cf8; font-size: 13px; font-weight: bold; text-decoration: underline;">
-              Tek Tıkla Giriş Yap
-            </a>
-          </div>` : ''}
-
           <p style="font-size: 11px; color: #475569; text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #1e293b; line-height: 1.5;">
             Bu isteği siz yapmadıysanız lütfen dikkate almayın.
           </p>
@@ -164,7 +154,7 @@ async function sendPinEmail(email, pin, magicLinkUrl = '') {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log(`[SMTP] 6 Haneli PIN e-postası başarıyla gönderildi -> ${email} (PIN: ${pin})`);
+    console.log(`[SMTP] 4 Haneli PIN e-postası başarıyla gönderildi -> ${email} (PIN: ${pin})`);
     return { sent: true };
   } catch (e) {
     console.error("[SMTP] PIN e-posta gönderim hatası:", e);
