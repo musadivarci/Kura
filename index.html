@@ -269,6 +269,12 @@
         <span id="userEmailDisplay">musadivarci19@gmail.com</span>
       </div>
 
+      <!-- Visible Logout Button -->
+      <button id="headerLogoutBtn" onclick="AuthService.logout()" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 text-[11px] font-bold transition shadow-sm" title="Oturumu Kapat">
+        <i class="fa-solid fa-power-off text-rose-400"></i>
+        <span>Çıkış</span>
+      </button>
+
       <!-- SQLite Database Status Pill -->
       <div id="dbStatusBadge" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 shadow-sm" title="SQLite Veritabanı — Sıfır Veri Kaybı Aktif">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -823,7 +829,7 @@
     </div>
   </div>
 
-  <!-- ==================== AUTH & MAGIC LINK OVERLAY (60s Expiry) ==================== -->
+  <!-- ==================== AUTH & 6-DIGIT PIN CODE OVERLAY (60s Expiry) ==================== -->
   <div id="authModalOverlay" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-[9999] transition-opacity duration-300">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6 relative overflow-hidden">
       
@@ -833,18 +839,18 @@
       <!-- Header & Icon -->
       <div class="text-center space-y-2">
         <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 text-2xl mb-1 shadow-inner">
-          <i id="authIcon" class="fa-solid fa-lock"></i>
+          <i id="authIcon" class="fa-solid fa-shield-halved"></i>
         </div>
         <h3 id="authTitle" class="text-xl font-extrabold text-white tracking-tight">Öğrenci Performans Sistemi</h3>
         <p id="authSubtitle" class="text-xs text-slate-400 leading-relaxed">
-          Sisteme şifresiz ve güvenli erişmek için <b class="text-indigo-400">musadivarci19@gmail.com</b> adresinize 60 saniye geçerli bir giriş linki gönderilir.
+          Sisteme güvenli erişmek için <b class="text-indigo-400">musadivarci19@gmail.com</b> adresinize 60 saniye geçerli bir doğrulama kodu gönderilir.
         </p>
       </div>
 
       <!-- Status Alert Box -->
       <div id="authAlertBox" class="hidden p-3.5 rounded-xl text-xs font-medium border"></div>
 
-      <!-- State 1: Email Form -->
+      <!-- State 1: Email Request Form -->
       <div id="authFormState" class="space-y-4">
         <div>
           <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Yetkili E-Posta Adresi</label>
@@ -856,39 +862,63 @@
           </div>
         </div>
 
-        <button id="sendLinkBtn" onclick="AuthService.requestMagicLink()" class="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 group">
+        <button id="sendPinBtn" onclick="AuthService.requestPin()" class="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 group">
           <i class="fa-solid fa-paper-plane group-hover:translate-x-0.5 transition-transform"></i>
-          <span>60 Saniyelik Giriş Bağlantısı Gönder</span>
+          <span>6 Haneli Giriş Kodu Gönder</span>
         </button>
       </div>
 
-      <!-- State 2: Link Sent / Countdown -->
-      <div id="authSentState" class="hidden space-y-4">
-        <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-3">
-          <div class="flex items-center justify-center gap-2 text-amber-400 text-sm font-bold">
-            <i class="fa-solid fa-stopwatch animate-pulse"></i>
-            <span>Kalan Süre: <span id="authTimerDisplay" class="font-mono text-base">60</span>s</span>
-          </div>
+      <!-- State 2: PIN Code Input Form -->
+      <div id="authPinState" class="hidden space-y-5">
+        <div class="space-y-2 text-center">
+          <label class="block text-xs font-bold text-slate-300">
+            E-postanıza Gelen 6 Haneli Kodu Girin:
+          </label>
 
-          <!-- Progress Bar -->
+          <!-- Large PIN Input -->
+          <div class="relative">
+            <input 
+              type="text" 
+              id="authPinInput" 
+              maxlength="6" 
+              inputmode="numeric" 
+              autocomplete="one-time-code"
+              placeholder="· · · · · ·" 
+              class="w-full text-center text-3xl sm:text-4xl tracking-[12px] font-black font-mono bg-slate-950 border-2 border-indigo-500/60 rounded-2xl py-3 text-white focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 transition-all placeholder:text-slate-700" 
+              oninput="AuthService.handlePinInput(event)"
+              onkeydown="if(event.key === 'Enter') AuthService.submitPin()"
+            />
+          </div>
+        </div>
+
+        <!-- Timer & Countdown Progress Bar -->
+        <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-center space-y-2">
+          <div class="flex items-center justify-between text-xs px-1">
+            <span class="text-slate-400 text-[11px]">Kalan Süre:</span>
+            <span class="text-amber-400 font-bold font-mono text-xs flex items-center gap-1">
+              <i class="fa-solid fa-stopwatch"></i> <span id="authTimerDisplay">60</span>s
+            </span>
+          </div>
           <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
             <div id="authTimerBar" class="bg-gradient-to-r from-indigo-500 to-amber-400 h-full rounded-full transition-all duration-1000 ease-linear" style="width: 100%;"></div>
           </div>
-
-          <p class="text-[11px] text-slate-400">
-            <b>musadivarci19@gmail.com</b> gelen kutunuzu (ve gerekiyorsa spam klasörünü) kontrol edin. E-postadaki butona tıkladığınızda bu ekranda oturumunuz <b>otomatik açılacaktır</b>.
-          </p>
         </div>
 
-        <button onclick="AuthService.resetForm()" class="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition">
-          <i class="fa-solid fa-rotate-left mr-1"></i> Yeni Bağlantı İste
+        <button id="verifyPinBtn" onclick="AuthService.submitPin()" class="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-key"></i>
+          <span>Doğrula & Oturumu Aç</span>
+        </button>
+
+        <button onclick="AuthService.resetForm()" class="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-rotate-left text-[10px]"></i>
+          <span>Yeni Kod İste</span>
         </button>
       </div>
 
       <!-- State 3: Verifying Spinner -->
       <div id="authVerifyingState" class="hidden py-6 text-center space-y-3">
         <div class="inline-block w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-xs sm:text-sm font-bold text-white">Giriş bağlantısı doğrulanıyor, oturum açılıyor...</p>
+        <p class="text-xs sm:text-sm font-bold text-white">Doğrulanıyor, oturum açılıyor...</p>
         <p class="text-[11px] text-slate-400">Lütfen bekleyin...</p>
       </div>
 
@@ -1024,6 +1054,7 @@
   <script>
     const AuthService = {
       user: null,
+      challengeToken: null,
       timerInterval: null,
       remainingSeconds: 60,
 
@@ -1041,7 +1072,7 @@
         const magicToken = urlParams.get('token');
 
         if (magicToken) {
-          await this.verifyToken(magicToken);
+          await this.verifyMagicLink(magicToken);
           return;
         }
 
@@ -1068,7 +1099,99 @@
         this.showLoginModal();
       },
 
-      async verifyToken(token) {
+      async requestPin() {
+        const email = document.getElementById('authEmailInput').value.trim();
+        const btn = document.getElementById('sendPinBtn');
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Kod Gönderiliyor...</span>`;
+
+        try {
+          const res = await fetch('/api/auth/send-pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          });
+          const json = await res.json();
+
+          if (json.success && json.challengeToken) {
+            this.challengeToken = json.challengeToken;
+            this.showPinState(json.expiresIn || 60);
+          } else {
+            this.showError(json.error || "Giriş kodu gönderilemedi.");
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>6 Haneli Giriş Kodu Gönder</span>`;
+          }
+        } catch (e) {
+          this.showError("Sunucuya ulaşılamadı. Lütfen bağlantınızı kontrol edin.");
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>6 Haneli Giriş Kodu Gönder</span>`;
+        }
+      },
+
+      handlePinInput(e) {
+        // Sadece rakamlara izin ver
+        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+        e.target.value = val;
+
+        // 6 hane tamamlandığında otomatik doğrula
+        if (val.length === 6) {
+          this.submitPin();
+        }
+      },
+
+      async submitPin() {
+        const pinInput = document.getElementById('authPinInput');
+        const pin = (pinInput ? pinInput.value : '').replace(/\D/g, '');
+
+        if (!pin || pin.length !== 6) {
+          this.showError("Lütfen e-postanıza gelen 6 haneli kodu eksiksiz girin.");
+          return;
+        }
+
+        if (!this.challengeToken) {
+          this.showError("Oturum isteği bulunamadı. Lütfen yeni bir kod isteyin.");
+          return;
+        }
+
+        const verifyBtn = document.getElementById('verifyPinBtn');
+        if (verifyBtn) {
+          verifyBtn.disabled = true;
+          verifyBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Doğrulanıyor...</span>`;
+        }
+
+        try {
+          const res = await fetch('/api/auth/verify-pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ pin, challengeToken: this.challengeToken })
+          });
+          const json = await res.json();
+
+          if (json.success && json.user) {
+            if (json.sessionToken) {
+              localStorage.setItem('kura_session_token', json.sessionToken);
+            }
+            this.setAuthenticated(json.user);
+            this.hideModal();
+            this.startApp();
+          } else {
+            this.showError(json.error || "Girdiğiniz kod geçersiz veya süresi dolmuş.");
+            if (verifyBtn) {
+              verifyBtn.disabled = false;
+              verifyBtn.innerHTML = `<i class="fa-solid fa-key"></i> <span>Doğrula & Oturumu Aç</span>`;
+            }
+          }
+        } catch (e) {
+          this.showError("Doğrulama sırasında sunucu hatası oluştu.");
+          if (verifyBtn) {
+            verifyBtn.disabled = false;
+            verifyBtn.innerHTML = `<i class="fa-solid fa-key"></i> <span>Doğrula & Oturumu Aç</span>`;
+          }
+        }
+      },
+
+      async verifyMagicLink(token) {
         this.showVerifyingState();
         try {
           const res = await fetch(`/api/auth/verify?token=${encodeURIComponent(token)}`, {
@@ -1078,23 +1201,19 @@
           });
           const json = await res.json();
 
+          const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+          window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+
           if (json.success && json.user) {
             if (json.sessionToken) {
               localStorage.setItem('kura_session_token', json.sessionToken);
             }
-            // URL'deki ?token parametresini temizle
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-
             this.setAuthenticated(json.user);
             this.hideModal();
             this.startApp();
           } else {
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-
             this.resetForm();
-            this.showError(json.error || "Giriş bağlantısı geçersiz veya 60 saniyelik süresi doldu.");
+            this.showError(json.error || "Giriş bağlantısı geçersiz veya süresi doldu.");
           }
         } catch (e) {
           this.resetForm();
@@ -1102,39 +1221,23 @@
         }
       },
 
-      async requestMagicLink() {
-        const email = document.getElementById('authEmailInput').value.trim();
-        const btn = document.getElementById('sendLinkBtn');
-        btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Gönderiliyor...</span>`;
-
-        try {
-          const res = await fetch('/api/auth/send-link', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-          });
-          const json = await res.json();
-
-          if (json.success) {
-            this.showSentState(json.expiresIn || 60);
-          } else {
-            this.showError(json.error || "Giriş linki gönderilemedi.");
-            btn.disabled = false;
-            btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>60 Saniyelik Giriş Bağlantısı Gönder</span>`;
-          }
-        } catch (e) {
-          this.showError("Sunucuya ulaşılamadı. Lütfen bağlantınızı kontrol edin.");
-          btn.disabled = false;
-          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>60 Saniyelik Giriş Bağlantısı Gönder</span>`;
-        }
-      },
-
-      showSentState(seconds = 60) {
+      showPinState(seconds = 60) {
         document.getElementById('authFormState').classList.add('hidden');
         document.getElementById('authVerifyingState').classList.add('hidden');
-        document.getElementById('authSentState').classList.remove('hidden');
+        document.getElementById('authPinState').classList.remove('hidden');
         this.hideAlert();
+
+        const pinInput = document.getElementById('authPinInput');
+        if (pinInput) {
+          pinInput.value = '';
+          setTimeout(() => pinInput.focus(), 150);
+        }
+
+        const verifyBtn = document.getElementById('verifyPinBtn');
+        if (verifyBtn) {
+          verifyBtn.disabled = false;
+          verifyBtn.innerHTML = `<i class="fa-solid fa-key"></i> <span>Doğrula & Oturumu Aç</span>`;
+        }
 
         this.remainingSeconds = seconds;
         const timerDisplay = document.getElementById('authTimerDisplay');
@@ -1150,7 +1253,7 @@
             clearInterval(this.timerInterval);
             timerDisplay.textContent = '0';
             timerBar.style.width = '0%';
-            this.showError("⏰ 60 saniyelik giriş bağlantısının süresi doldu. Lütfen yeni bir link isteyin.");
+            this.showError("⏰ 60 saniyelik giriş kodunun süresi doldu. Lütfen yeni bir kod isteyin.");
           } else {
             timerDisplay.textContent = this.remainingSeconds;
             const pct = (this.remainingSeconds / seconds) * 100;
@@ -1162,7 +1265,7 @@
       showVerifyingState() {
         document.getElementById('authModalOverlay').classList.remove('hidden');
         document.getElementById('authFormState').classList.add('hidden');
-        document.getElementById('authSentState').classList.add('hidden');
+        document.getElementById('authPinState').classList.add('hidden');
         document.getElementById('authVerifyingState').classList.remove('hidden');
         this.hideAlert();
       },
@@ -1174,13 +1277,14 @@
 
       resetForm() {
         if (this.timerInterval) clearInterval(this.timerInterval);
+        this.challengeToken = null;
         document.getElementById('authFormState').classList.remove('hidden');
-        document.getElementById('authSentState').classList.add('hidden');
+        document.getElementById('authPinState').classList.add('hidden');
         document.getElementById('authVerifyingState').classList.add('hidden');
-        const btn = document.getElementById('sendLinkBtn');
+        const btn = document.getElementById('sendPinBtn');
         if (btn) {
           btn.disabled = false;
-          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>60 Saniyelik Giriş Bağlantısı Gönder</span>`;
+          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>6 Haneli Giriş Kodu Gönder</span>`;
         }
         this.hideAlert();
       },
@@ -1194,9 +1298,13 @@
         this.user = user;
         const badge = document.getElementById('userBadge');
         const emailSpan = document.getElementById('userEmailDisplay');
+        const logoutBtn = document.getElementById('headerLogoutBtn');
         if (badge && emailSpan) {
           badge.classList.remove('hidden');
           emailSpan.textContent = user.email || 'musadivarci19@gmail.com';
+        }
+        if (logoutBtn) {
+          logoutBtn.classList.remove('hidden');
         }
       },
 
@@ -1223,7 +1331,9 @@
         localStorage.removeItem('kura_session_token');
         this.user = null;
         const badge = document.getElementById('userBadge');
+        const logoutBtn = document.getElementById('headerLogoutBtn');
         if (badge) badge.classList.add('hidden');
+        if (logoutBtn) logoutBtn.classList.add('hidden');
         this.showLoginModal();
       },
 

@@ -278,8 +278,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   // --- AUTH ENDPOINTS ---
-  // 1. Giriş Linki İste (60 saniye ömürlü)
-  if (pathname === '/api/auth/send-link' && req.method === 'POST') {
+  // 1. 6 Haneli PIN Kodu İste (60 saniye ömürlü)
+  if ((pathname === '/api/auth/send-pin' || pathname === '/api/auth/send-link') && req.method === 'POST') {
     try {
       const body = await parseBody(req);
       const email = (body.email || auth.ALLOWED_EMAIL).trim().toLowerCase();
@@ -288,38 +288,35 @@ const server = http.createServer(async (req, res) => {
         return sendJSON(res, { success: false, error: `Sadece ${auth.ALLOWED_EMAIL} adresi ile giriş yapılabilir.` }, 403);
       }
 
-      const { token } = auth.generateMagicToken(email);
+      const { pin, challengeToken, expiresAt } = auth.generatePinChallenge(email);
       const host = req.headers.host;
       const protocol = req.headers['x-forwarded-proto'] || 'http';
-      const magicLinkUrl = `${protocol}://${host}/?token=${token}`;
 
-      const mailResult = await auth.sendMagicLinkEmail(email, magicLinkUrl);
+      const mailResult = await auth.sendPinEmail(email, pin);
 
       return sendJSON(res, {
         success: true,
-        message: `Giriş bağlantısı ${email} adresine gönderildi (60 saniye geçerli).`,
-        expiresIn: auth.LINK_EXPIRY_SECONDS
+        message: `6 haneli giriş kodu ${email} adresinize gönderildi (60 saniye geçerli).`,
+        challengeToken,
+        expiresIn: auth.PIN_EXPIRY_SECONDS
       });
     } catch (e) {
       return sendJSON(res, { success: false, error: e.message }, 500);
     }
   }
 
-  // 2. Token Doğrula (Tek tıkla oturum açma)
-  if ((pathname === '/api/auth/verify') && (req.method === 'GET' || req.method === 'POST')) {
+  // 2. 6 Haneli PIN Kodunu Doğrula
+  if (pathname === '/api/auth/verify-pin' && req.method === 'POST') {
     try {
-      let token = parsedUrl.searchParams.get('token');
-      if (!token && req.method === 'POST') {
-        const b = await parseBody(req);
-        token = b.token;
-      }
+      const body = await parseBody(req);
+      const { pin, challengeToken } = body;
 
-      const result = auth.verifyMagicToken(token);
+      const result = auth.verifyPin(pin, challengeToken);
       if (!result.valid) {
         return sendJSON(res, { success: false, error: result.error }, 400);
       }
 
-      // Cookie ayarla (30 gün)
+      // 30 Günlük Session Cookie
       const cookieVal = `auth_session=${result.sessionToken}; Path=/; Max-Age=2592000; SameSite=Lax; HttpOnly`;
       return sendJSON(res, {
         success: true,

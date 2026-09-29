@@ -294,8 +294,8 @@ module.exports = async (req, res) => {
 
   try {
     // --- AUTH ENDPOINTS ---
-    // 1. POST /api/auth/send-link
-    if (pathname.endsWith('/auth/send-link') && req.method === 'POST') {
+    // 1. POST /api/auth/send-pin & /api/auth/send-link
+    if ((pathname.endsWith('/auth/send-pin') || pathname.endsWith('/auth/send-link')) && req.method === 'POST') {
       const body = await parseBody(req);
       const email = (body.email || auth.ALLOWED_EMAIL).trim().toLowerCase();
 
@@ -303,33 +303,26 @@ module.exports = async (req, res) => {
         return sendJSON(res, { success: false, error: `Sadece ${auth.ALLOWED_EMAIL} adresi ile giriş yapılabilir.` }, 403);
       }
 
-      const { token } = auth.generateMagicToken(email);
+      const { pin, challengeToken, expiresAt } = auth.generatePinChallenge(email);
       const host = req.headers.host;
       const protocol = req.headers['x-forwarded-proto'] || 'https';
-      const magicLinkUrl = `${protocol}://${host}/?token=${token}`;
 
-      const mailResult = await auth.sendMagicLinkEmail(email, magicLinkUrl);
+      const mailResult = await auth.sendPinEmail(email, pin);
 
       return sendJSON(res, {
         success: true,
-        message: `Giriş bağlantısı ${email} adresine gönderildi (60 saniye geçerli).`,
-        expiresIn: auth.LINK_EXPIRY_SECONDS
+        message: `6 haneli giriş kodu ${email} adresinize gönderildi (60 saniye geçerli).`,
+        challengeToken,
+        expiresIn: auth.PIN_EXPIRY_SECONDS
       });
     }
 
-    // 2. GET / POST /api/auth/verify
-    if (pathname.endsWith('/auth/verify') && (req.method === 'GET' || req.method === 'POST')) {
-      let token = null;
-      if (url.includes('?')) {
-        const queryParams = new URLSearchParams(url.split('?')[1]);
-        token = queryParams.get('token');
-      }
-      if (!token && req.method === 'POST') {
-        const b = await parseBody(req);
-        token = b.token;
-      }
+    // 2. POST /api/auth/verify-pin
+    if (pathname.endsWith('/auth/verify-pin') && req.method === 'POST') {
+      const body = await parseBody(req);
+      const { pin, challengeToken } = body;
 
-      const result = auth.verifyMagicToken(token);
+      const result = auth.verifyPin(pin, challengeToken);
       if (!result.valid) {
         return sendJSON(res, { success: false, error: result.error }, 400);
       }
