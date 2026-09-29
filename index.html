@@ -1,0 +1,2205 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Öğrenci Performans Sistemi — MD</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #0b0f19;
+      color: #f3f4f6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .dark-card {
+      background-color: #111827;
+      border: 1px solid #1f2937;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+    }
+    .dark-card-inner {
+      background-color: #0f172a;
+      border: 1px solid #1e293b;
+    }
+    .badge-pos {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge-neg {
+      background-color: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+    .badge-zero {
+      background-color: rgba(148, 163, 184, 0.1);
+      color: #94a3b8;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    .badge-total {
+      background-color: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+    .sym-plus {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 6px;
+      width: 22px;
+      height: 22px;
+      font-size: 13px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .sym-minus {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fb7185;
+      background: rgba(244, 63, 94, 0.15);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      border-radius: 6px;
+      width: 22px;
+      height: 22px;
+      font-size: 13px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .sym-test-3 {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #c084fc;
+      background: rgba(168, 85, 247, 0.18);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      border-radius: 6px;
+      padding: 0 5px;
+      height: 22px;
+      font-size: 11px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .sym-test-2 {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 6px;
+      padding: 0 5px;
+      height: 22px;
+      font-size: 11px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .sym-test-1 {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 6px;
+      padding: 0 5px;
+      height: 22px;
+      font-size: 11px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .sym-test-neg {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fb7185;
+      background: rgba(244, 63, 94, 0.15);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      border-radius: 6px;
+      padding: 0 5px;
+      height: 22px;
+      font-size: 11px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Minimal Scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f19;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1f2937;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #374151;
+    }
+
+    /* Dramatic Lottery Animations */
+    @keyframes winnerPulseGlow {
+      0% {
+        transform: scale(0.92);
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+      }
+      50% {
+        transform: scale(1.04);
+        box-shadow: 0 0 45px 10px rgba(245, 158, 11, 0.35), 0 0 70px 20px rgba(99, 102, 241, 0.25);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 25px 4px rgba(245, 158, 11, 0.2);
+      }
+    }
+
+    @keyframes rollingPulse {
+      0%, 100% {
+        box-shadow: 0 0 15px 2px rgba(99, 102, 241, 0.2);
+        border-color: rgba(99, 102, 241, 0.5);
+      }
+      50% {
+        box-shadow: 0 0 30px 6px rgba(168, 85, 247, 0.4);
+        border-color: rgba(168, 85, 247, 0.8);
+      }
+    }
+
+    @keyframes goldShimmerSweep {
+      0% {
+        background-position: -200% center;
+      }
+      100% {
+        background-position: 200% center;
+      }
+    }
+
+    .winner-card-active {
+      animation: winnerPulseGlow 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      border-color: rgba(245, 158, 11, 0.75) !important;
+      background: radial-gradient(circle at 50% 30%, rgba(245, 158, 11, 0.15) 0%, rgba(15, 23, 42, 0.95) 70%) !important;
+    }
+
+    .rolling-card-active {
+      animation: rollingPulse 0.4s ease-in-out infinite alternate;
+      background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.12) 0%, #0f172a 80%) !important;
+    }
+
+    .winner-name-shimmer {
+      background: linear-gradient(90deg, #ffffff 0%, #fde68a 35%, #fbbf24 50%, #fde68a 65%, #ffffff 100%);
+      background-size: 250% 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: goldShimmerSweep 2.5s linear infinite;
+    }
+
+    .rolling-name-blur {
+      filter: blur(0.6px);
+      transform: scale(0.98);
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body class="p-3 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-5">
+
+  <!-- Header with MD Logo & 5-Tab Main Navigation -->
+  <header class="dark-card rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    
+    <!-- Logo & Brand -->
+    <div class="flex items-center space-x-3.5">
+      <div class="h-11 w-11 rounded-xl bg-black border border-slate-800 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+        <img src="./logo.png" alt="MD Logo" class="h-full w-full object-contain" onerror="this.outerHTML='<span class=\'font-black font-mono text-white text-base\'>MD</span>'">
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white">
+            Öğrenci Performans Sistemi
+          </h1>
+          <span class="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+            MD
+          </span>
+        </div>
+        <p class="text-xs text-slate-400 font-medium">Musa DİVARCI</p>
+      </div>
+    </div>
+
+    <!-- MAIN MENU: Kura — Ders İçi — Ödev — Test — Genel Durum -->
+    <div class="flex items-center bg-slate-900/90 p-1.5 rounded-xl border border-slate-800 overflow-x-auto gap-1">
+      <button id="navBtn-kura" onclick="switchPage('kura')" class="px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-indigo-600 text-white shadow-sm shrink-0">
+        <i class="fa-solid fa-dice mr-1 text-amber-300"></i> Kura
+      </button>
+
+      <button id="navBtn-dersici" onclick="switchPage('dersici')" class="px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white shrink-0">
+        <i class="fa-solid fa-chalkboard-user mr-1 text-slate-400"></i> Ders İçi
+      </button>
+
+      <button id="navBtn-odev" onclick="switchPage('odev')" class="px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white shrink-0">
+        <i class="fa-solid fa-book-bookmark mr-1 text-amber-400"></i> Ödev
+      </button>
+
+      <button id="navBtn-test" onclick="switchPage('test')" class="px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white shrink-0">
+        <i class="fa-solid fa-file-lines mr-1 text-purple-400"></i> Test
+      </button>
+
+      <button id="navBtn-geneldurum" onclick="switchPage('geneldurum')" class="px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white shrink-0">
+        <i class="fa-solid fa-table-list mr-1 text-cyan-400"></i> Genel Durum
+      </button>
+    </div>
+
+    <!-- Actions & Settings -->
+    <div class="flex items-center gap-2">
+      <!-- SQLite Database Status Pill -->
+      <div id="dbStatusBadge" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 shadow-sm" title="SQLite Veritabanı — Sıfır Veri Kaybı Aktif">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="hidden sm:inline">SQLite Aktif</span>
+      </div>
+
+      <button onclick="exportCurrentPageCSV()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+        <i class="fa-solid fa-file-excel text-emerald-400"></i> Excel İndir
+      </button>
+
+      <div class="relative inline-block" id="dbDropdownWrap">
+        <button onclick="toggleDbMenu()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-sliders text-slate-400"></i> Ayarlar <i class="fa-solid fa-chevron-down text-[9px] text-slate-500 ml-0.5"></i>
+        </button>
+        <div id="dbMenu" class="hidden absolute right-0 mt-2 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1.5 z-50 text-xs text-slate-300">
+          <button onclick="openEditModal()" class="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-pen-to-square text-indigo-400"></i> Sınıf Listesini Düzenle
+          </button>
+          <button onclick="exportDatabaseJSON()" class="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-download text-emerald-400"></i> JSON Yedek İndir
+          </button>
+          <label class="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2 cursor-pointer">
+            <i class="fa-solid fa-upload text-indigo-400"></i> JSON Yedek Yükle
+            <input type="file" id="dbFileInput" accept=".json" onchange="importDatabaseJSON(event)" class="hidden">
+          </label>
+          <hr class="border-slate-800 my-1">
+          <button onclick="resetCurrentClassScores()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2">
+            <i class="fa-solid fa-eraser"></i> Ders İçi Puanlarını Sıfırla
+          </button>
+          <button onclick="resetCurrentClassHwScores()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2">
+            <i class="fa-solid fa-eraser"></i> Ödev Puanlarını Sıfırla
+          </button>
+          <button onclick="resetCurrentClassTestScores()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2">
+            <i class="fa-solid fa-eraser"></i> Test Puanlarını Sıfırla
+          </button>
+          <button onclick="resetClassDrawPool()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2">
+            <i class="fa-solid fa-rotate-left"></i> Kura Havuzunu Sıfırla
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Class Tabs (6, 7, 8) -->
+  <div class="flex items-center gap-2.5 overflow-x-auto pb-1">
+    <button id="tab-6" onclick="switchClass('6')" class="flex-1 min-w-[130px] py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 border">
+      <span>6. Sınıf</span>
+      <span id="badge-6" class="text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono">32</span>
+    </button>
+
+    <button id="tab-7" onclick="switchClass('7')" class="flex-1 min-w-[130px] py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 border">
+      <span>7. Sınıf</span>
+      <span id="badge-7" class="text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono">28</span>
+    </button>
+
+    <button id="tab-8" onclick="switchClass('8')" class="flex-1 min-w-[130px] py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 border">
+      <span>8. Sınıf</span>
+      <span id="badge-8" class="text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono">29</span>
+    </button>
+  </div>
+
+  <!-- ==================== SAYFA 1: KURA ==================== -->
+  <div id="page-kura" class="space-y-6">
+    
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Left: Draw Stage (7 cols) -->
+      <div class="lg:col-span-7 flex flex-col gap-4">
+
+        <div class="dark-card rounded-2xl p-6 sm:p-8 flex flex-col items-center justify-center min-h-[440px] text-center relative">
+          
+          <div class="flex items-center gap-2 mb-4">
+            <span id="drawClassTag" class="px-3 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200">
+              7. Sınıf Kurası
+            </span>
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900 border border-slate-800 text-xs font-medium text-slate-400">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Kura Sırası: <span id="drawOrderDisplay" class="text-white font-bold font-mono">#1</span>
+            </div>
+          </div>
+
+          <!-- Selected Student Display Card -->
+          <div class="w-full py-5 px-2 flex flex-col items-center justify-center">
+            <div id="nameCard" class="w-full max-w-xl min-h-[200px] flex flex-col items-center justify-center p-6 sm:p-8 rounded-2xl dark-card-inner transition-all duration-300 relative border border-slate-800">
+              
+              <!-- Winner Top Badge (Shown only on reveal) -->
+              <div id="winnerBadge" class="hidden inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/50 text-amber-300 text-xs font-black tracking-wider uppercase shadow-lg shadow-amber-500/10 mb-2.5">
+                <i class="fa-solid fa-crown text-amber-400 animate-bounce"></i>
+                <span>Sıradaki Öğrenci</span>
+              </div>
+
+              <!-- Student Name -->
+              <span id="drawnNameText" class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight text-center uppercase select-all leading-snug transition-all duration-200">
+                Kura Çekmeye Hazır
+              </span>
+
+              <!-- Star badge for drawn student (if has test stars) -->
+              <div id="drawnStarBadgeWrap" class="mt-2 hidden"></div>
+
+              <!-- Live Score and ONLY Ders İçi +/- Controls on Draw Card -->
+              <div id="drawnStudentScorePanel" class="mt-5 flex flex-col items-center gap-3 w-full hidden transition-all duration-300">
+                
+                <div class="flex items-center justify-center gap-2.5 px-4 py-2 rounded-xl bg-slate-900/95 border border-slate-800 text-xs font-semibold text-slate-300 shadow-inner">
+                  <span class="text-slate-400">Ders İçi:</span>
+                  <div id="cardScoreSymbols" class="inline-flex items-center gap-1"></div>
+                  <span class="text-slate-600">|</span>
+                  <span id="cardScoreNet" class="font-bold font-mono text-emerald-400">Net: 0</span>
+                </div>
+
+                <!-- ONLY Ders İçi + / - scoring buttons -->
+                <div class="flex items-center justify-center gap-3 w-full max-w-xs pt-1">
+                  <button onclick="addPointToDrawn(1)" class="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50 active:scale-95 group">
+                    <i class="fa-solid fa-plus text-emerald-200 group-hover:scale-125 transition-transform"></i>
+                    <span>Artı (+1)</span>
+                  </button>
+                  <button onclick="addPointToDrawn(-1)" class="flex-1 py-3 px-4 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 shadow-lg shadow-rose-950/50 active:scale-95 group">
+                    <i class="fa-solid fa-minus text-rose-200 group-hover:scale-125 transition-transform"></i>
+                    <span>Eksi (-1)</span>
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Draw Button -->
+          <div class="mt-2 w-full max-w-sm space-y-3">
+            <button id="drawBtn" onclick="startDraw()" class="w-full py-4 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.99] flex items-center justify-center gap-2">
+              <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i>
+              <span>Kura Çek</span>
+            </button>
+
+            <label class="flex items-center justify-center gap-2 cursor-pointer select-none text-xs text-slate-400">
+              <input type="checkbox" id="autoRemoveToggle" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" checked>
+              <span>Çekilen öğrenciyi kura havuzundan çıkar</span>
+            </label>
+          </div>
+
+        </div>
+
+        <!-- Quick Stats Chips -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="dark-card rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Kalan</p>
+              <h3 id="remainingCount" class="text-2xl font-black text-white mt-0.5">28</h3>
+            </div>
+            <div class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-users"></i>
+            </div>
+          </div>
+
+          <div class="dark-card rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Çekilen</p>
+              <h3 id="drawnCount" class="text-2xl font-black text-emerald-400 mt-0.5">0</h3>
+            </div>
+            <div class="w-8 h-8 rounded-lg bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-check"></i>
+            </div>
+          </div>
+
+          <div class="dark-card rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Net Puan</p>
+              <h3 id="classTotalNetScore" class="text-2xl font-black text-amber-400 mt-0.5">0</h3>
+            </div>
+            <div class="w-8 h-8 rounded-lg bg-slate-800 text-amber-400 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-star"></i>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right: Drawn History (5 cols) -->
+      <div class="lg:col-span-5 flex flex-col gap-4">
+
+        <div class="dark-card rounded-2xl p-5 flex flex-col h-[540px]">
+          
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-list-ol text-slate-400"></i>
+              <h2 class="font-bold text-slate-200 text-sm"><span id="historyClassTitle">7. Sınıf</span> Kura Sıralaması</h2>
+            </div>
+            <button onclick="exportResults()" class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+              <i class="fa-solid fa-copy"></i> Kopyala
+            </button>
+          </div>
+
+          <!-- List -->
+          <div id="drawnListContainer" class="flex-1 overflow-y-auto space-y-2 py-3 pr-1">
+            <div id="emptyDrawnMsg" class="h-full flex flex-col items-center justify-center text-center text-slate-500 p-6">
+              <i class="fa-solid fa-inbox text-3xl mb-2 opacity-30"></i>
+              <p class="text-xs font-medium">Henüz kura çekilmedi.</p>
+            </div>
+          </div>
+
+          <!-- Bottom Summary -->
+          <div class="pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <span>Mevcut: <b id="totalPoolCount" class="text-slate-200">28</b></span>
+            <button onclick="resetClassDrawPool()" class="text-rose-400 hover:underline">Havuzu Başa Al</button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Remaining Pool Accordion -->
+    <div class="dark-card rounded-2xl p-5">
+      <div class="flex items-center justify-between cursor-pointer" onclick="toggleRemainingPool()">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-users text-slate-400 text-xs"></i>
+          <span class="font-bold text-slate-300 text-xs">
+            <span id="accordionClassTitle">7. Sınıf</span> Havuzdaki Öğrenciler (<span id="remainingBadgeCount">28</span>)
+          </span>
+        </div>
+        <i id="remainingToggleIcon" class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform"></i>
+      </div>
+      <div id="remainingPoolList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mt-4 pt-3 border-t border-slate-800"></div>
+    </div>
+
+  </div>
+
+  <!-- ==================== SAYFA 2: DERS İÇİ ==================== -->
+  <div id="page-dersici" class="space-y-6 hidden">
+    
+    <div class="dark-card rounded-2xl p-5 sm:p-6 space-y-5">
+      
+      <!-- Top Header & Actions -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg font-bold text-white">
+              <span id="dersiciClassTitle">7. Sınıf</span> Ders İçi Performans Listesi
+            </h2>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">Sözlü ve kura performans simgeleri (+ -)</p>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="exportScoresToCSV('dersici')" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 shadow-sm">
+            <i class="fa-solid fa-download text-emerald-400"></i> Excel İndir
+          </button>
+          <button onclick="resetCurrentClassScores()" class="px-3 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 rounded-xl text-xs font-bold transition">
+            Puanları Sıfırla
+          </button>
+        </div>
+      </div>
+
+      <!-- Search & Sort Row -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+        <div class="md:col-span-8 relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+          <input type="text" id="dersiciSearchInput" oninput="renderDersIciTable()" placeholder="Öğrenci adı ara..." class="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-slate-600 transition">
+        </div>
+
+        <div class="md:col-span-4 flex items-center justify-between md:justify-end gap-2 text-xs text-slate-400">
+          <span>Sırala:</span>
+          <select id="dersiciSortSelect" onchange="renderDersIciTable()" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none">
+            <option value="name">İsim (A-Z)</option>
+            <option value="least-participated">En Az Söz Alanlar</option>
+            <option value="net-desc">En Yüksek Net Puan</option>
+            <option value="plus-desc">En Çok Artı (+)</option>
+            <option value="minus-desc">En Çok Eksi (-)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Clean Minimalist Table -->
+      <div class="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/40">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 text-slate-400 font-bold uppercase border-b border-slate-800">
+            <tr>
+              <th class="p-3.5 w-12 text-center">#</th>
+              <th class="p-3.5">Öğrenci Adı</th>
+              <th class="p-3.5">Artı / Eksi Simgeleri (+ / -)</th>
+              <th class="p-3.5 text-center w-28">Net Puan</th>
+              <th class="p-3.5 text-right w-36">Puan Ver</th>
+            </tr>
+          </thead>
+          <tbody id="dersiciTableBody" class="divide-y divide-slate-800/80"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ==================== SAYFA 3: ÖDEV ==================== -->
+  <div id="page-odev" class="space-y-6 hidden">
+    
+    <div class="dark-card rounded-2xl p-5 sm:p-6 space-y-5">
+      
+      <!-- Top Header & Actions -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg font-bold text-white">
+              <span id="odevClassTitle">7. Sınıf</span> Ödev Takip Listesi
+            </h2>
+            <span class="px-2 py-0.5 rounded-md bg-amber-950/80 border border-amber-500/30 text-amber-300 text-[10px] font-bold uppercase">
+              Ödev & Sorumluluk
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">Ödev teslimleri için artı ve eksi simgeleri (+ -)</p>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="exportScoresToCSV('odev')" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 shadow-sm">
+            <i class="fa-solid fa-download text-amber-400"></i> Excel İndir
+          </button>
+          <button onclick="resetCurrentClassHwScores()" class="px-3 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 rounded-xl text-xs font-bold transition">
+            Ödev Puanlarını Sıfırla
+          </button>
+        </div>
+      </div>
+
+      <!-- Search & Sort Row -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+        <div class="md:col-span-8 relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+          <input type="text" id="odevSearchInput" oninput="renderOdevTable()" placeholder="Öğrenci adı ara..." class="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-slate-600 transition">
+        </div>
+
+        <div class="md:col-span-4 flex items-center justify-between md:justify-end gap-2 text-xs text-slate-400">
+          <span>Sırala:</span>
+          <select id="odevSortSelect" onchange="renderOdevTable()" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none">
+            <option value="name">İsim (A-Z)</option>
+            <option value="least-participated">En Az Ödev Yapanlar Önce</option>
+            <option value="net-desc">En Yüksek Net Ödev Puanı</option>
+            <option value="plus-desc">En Çok Artı (+)</option>
+            <option value="minus-desc">En Çok Eksi (-)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Clean Minimalist Homework Table -->
+      <div class="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/40">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 text-slate-400 font-bold uppercase border-b border-slate-800">
+            <tr>
+              <th class="p-3.5 w-12 text-center">#</th>
+              <th class="p-3.5">Öğrenci Adı</th>
+              <th class="p-3.5">Ödev Artı / Eksi Simgeleri (+ / -)</th>
+              <th class="p-3.5 text-center w-28">Net Puan</th>
+              <th class="p-3.5 text-right w-36">Ödev Notu Ver</th>
+            </tr>
+          </thead>
+          <tbody id="odevTableBody" class="divide-y divide-slate-800/80"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ==================== SAYFA 4: TEST ==================== -->
+  <div id="page-test" class="space-y-6 hidden">
+    
+    <div class="dark-card rounded-2xl p-5 sm:p-6 space-y-5">
+      
+      <!-- Top Header & Actions -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg font-bold text-white">
+              <span id="testClassTitle">7. Sınıf</span> Test Değerlendirme Listesi
+            </h2>
+            <span class="px-2 py-0.5 rounded-md bg-purple-950/80 border border-purple-500/30 text-purple-300 text-[10px] font-bold uppercase">
+              Test & Sınav
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">Test ve etkinlik değerlendirmesi için 3, 2, 1 puanlama tablosu</p>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="exportScoresToCSV('test')" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 shadow-sm">
+            <i class="fa-solid fa-download text-purple-400"></i> Excel İndir
+          </button>
+          <button onclick="resetCurrentClassTestScores()" class="px-3 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 rounded-xl text-xs font-bold transition">
+            Test Puanlarını Sıfırla
+          </button>
+        </div>
+      </div>
+
+      <!-- Search & Sort Row -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+        <div class="md:col-span-8 relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+          <input type="text" id="testSearchInput" oninput="renderTestTable()" placeholder="Öğrenci adı ara..." class="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-slate-600 transition">
+        </div>
+
+        <div class="md:col-span-4 flex items-center justify-between md:justify-end gap-2 text-xs text-slate-400">
+          <span>Sırala:</span>
+          <select id="testSortSelect" onchange="renderTestTable()" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none">
+            <option value="name">İsim (A-Z)</option>
+            <option value="score-desc">En Yüksek Test Puanı</option>
+            <option value="score-asc">En Düşük Test Puanı</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Clean Minimalist Test Table -->
+      <div class="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/40">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 text-slate-400 font-bold uppercase border-b border-slate-800">
+            <tr>
+              <th class="p-3.5 w-12 text-center">#</th>
+              <th class="p-3.5">Öğrenci Adı</th>
+              <th class="p-3.5">Alınan Puanlar Geçmişi</th>
+              <th class="p-3.5 text-center w-28">Toplam Puan</th>
+              <th class="p-3.5 text-right w-52">Puan Ver (3, 2, 1)</th>
+            </tr>
+          </thead>
+          <tbody id="testTableBody" class="divide-y divide-slate-800/80"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ==================== SAYFA 5: GENEL DURUM (BİRLEŞİK LİSTE) ==================== -->
+  <div id="page-geneldurum" class="space-y-6 hidden">
+    
+    <div class="dark-card rounded-2xl p-5 sm:p-6 space-y-5">
+      
+      <!-- Top Header & Actions -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-lg font-bold text-white">
+              <span id="genelClassTitle">7. Sınıf</span> Genel Performans Karnesi
+            </h2>
+            <span class="px-2 py-0.5 rounded-md bg-indigo-950/80 border border-indigo-500/30 text-indigo-300 text-[10px] font-bold uppercase">
+              Ders İçi, Ödev & Test Birleşik
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">Ders içi, ödev ve test sonuçlarının toplu sayısal karşılaştırmalı listesi</p>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="exportScoresToCSV('geneldurum')" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-indigo-600/20">
+            <i class="fa-solid fa-file-export"></i> Genel Karneyi İndir (.csv)
+          </button>
+        </div>
+      </div>
+
+      <!-- Search & Sort Row -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+        <div class="md:col-span-8 relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-500 text-xs"></i>
+          <input type="text" id="genelSearchInput" oninput="renderGenelTable()" placeholder="Öğrenci adı ara..." class="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-slate-600 transition">
+        </div>
+
+        <div class="md:col-span-4 flex items-center justify-between md:justify-end gap-2 text-xs text-slate-400">
+          <span>Sırala:</span>
+          <select id="genelSortSelect" onchange="renderGenelTable()" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none">
+            <option value="name">İsim (A-Z)</option>
+            <option value="total-desc">En Yüksek Toplam Net Puan</option>
+            <option value="test-desc">En Çok Test Puanı</option>
+            <option value="dersici-desc">En Çok Ders İçi Puanı</option>
+            <option value="odev-desc">En Çok Ödev Puanı</option>
+            <option value="least-participated">Düşük Performanslılar Önce</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Combined Status Table -->
+      <div class="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950/40">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 text-slate-400 font-bold uppercase border-b border-slate-800">
+            <!-- Üst Kategori Başlıkları -->
+            <tr class="border-b border-slate-800/80 text-[11px] tracking-wider">
+              <th colspan="2" class="p-2 text-center text-slate-400 bg-slate-900 border-r border-slate-800">
+                <i class="fa-solid fa-user-graduate mr-1 text-slate-400"></i> Öğrenci
+              </th>
+              <th colspan="3" class="p-2 text-center text-emerald-300 bg-emerald-950/40 border-r border-slate-800">
+                <i class="fa-solid fa-chalkboard-user mr-1 text-emerald-400"></i> Ders İçi Performans
+              </th>
+              <th colspan="3" class="p-2 text-center text-amber-300 bg-amber-950/40 border-r border-slate-800">
+                <i class="fa-solid fa-book-bookmark mr-1 text-amber-400"></i> Ödev Takibi
+              </th>
+              <th colspan="1" class="p-2 text-center text-purple-300 bg-purple-950/40 border-r border-slate-800">
+                <i class="fa-solid fa-file-lines mr-1 text-purple-400"></i> Test & Sınav
+              </th>
+              <th colspan="1" class="p-2 text-center text-indigo-300 bg-indigo-950/60">
+                <i class="fa-solid fa-star mr-1 text-indigo-400"></i> Genel Sonuç
+              </th>
+            </tr>
+            <!-- Alt Kolon Başlıkları -->
+            <tr>
+              <th class="p-3 w-12 text-center bg-slate-900">#</th>
+              <th class="p-3 bg-slate-900 border-r border-slate-800">Öğrenci Adı</th>
+              <th class="p-3 text-center w-20 text-emerald-400 bg-emerald-950/30">Artı (+)</th>
+              <th class="p-3 text-center w-20 text-rose-400 bg-emerald-950/30">Eksi (-)</th>
+              <th class="p-3 text-center w-24 text-emerald-300 bg-emerald-950/45 border-r border-slate-800">Net Puan</th>
+              <th class="p-3 text-center w-20 text-emerald-400 bg-amber-950/30">Artı (+)</th>
+              <th class="p-3 text-center w-20 text-rose-400 bg-amber-950/30">Eksi (-)</th>
+              <th class="p-3 text-center w-24 text-amber-300 bg-amber-950/45 border-r border-slate-800">Net Puan</th>
+              <th class="p-3 text-center w-24 text-purple-300 bg-purple-950/40 border-r border-slate-800">Toplam Puan</th>
+              <th class="p-3 text-center w-28 text-indigo-300 bg-indigo-950/50">Genel Net</th>
+            </tr>
+          </thead>
+          <tbody id="genelTableBody" class="divide-y divide-slate-800/80"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Modal: Edit Student Names -->
+  <div id="editModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-users text-slate-400"></i> <span id="modalTitle">7. Sınıf</span> Öğrenci Listesi
+        </h3>
+        <button onclick="closeEditModal()" class="text-slate-400 hover:text-white text-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-400">
+        Her satıra bir öğrenci adı gelecek şekilde düzenleyin veya yapıştırın:
+      </p>
+
+      <textarea id="modalTextarea" rows="12" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 font-mono focus:outline-none focus:border-slate-600"></textarea>
+
+      <div class="flex items-center justify-between pt-2">
+        <button onclick="restoreClassDefault()" class="text-xs text-slate-400 hover:underline">
+          Varsayılana Dön
+        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="closeEditModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">
+            İptal
+          </button>
+          <button onclick="saveCustomList()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-sm">
+            Kaydet
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Engine -->
+  <script>
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new AudioContext();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    // Tension-building lottery drum/tick sound
+    function playTickSound(step = 0, total = 20) {
+      try {
+        initAudio();
+        const progress = Math.min(1, Math.max(0, step / total));
+        const baseFreq = 260 + (progress * 420);
+
+        // Sub click
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = progress > 0.6 ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.35, audioCtx.currentTime + 0.04);
+        
+        gain.gain.setValueAtTime(0.05 + (progress * 0.05), audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.045);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.045);
+      } catch (e) {}
+    }
+
+    // Exciting Grand Winner Fanfare + Chimes
+    function playGrandLotteryFanfare() {
+      try {
+        initAudio();
+        const now = audioCtx.currentTime;
+
+        // Brass Arpeggio Notes: C5 -> E5 -> G5 -> C6 -> E6
+        const brassNotes = [
+          { f: 523.25, time: 0.00, dur: 0.14 },
+          { f: 659.25, time: 0.09, dur: 0.14 },
+          { f: 783.99, time: 0.18, dur: 0.16 },
+          { f: 1046.50, time: 0.27, dur: 0.55 },
+          { f: 1318.51, time: 0.27, dur: 0.55 }
+        ];
+
+        brassNotes.forEach(n => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(n.f, now + n.time);
+          gain.gain.setValueAtTime(0.12, now + n.time);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + n.time + n.dur);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now + n.time);
+          osc.stop(now + n.time + n.dur);
+        });
+
+        // Sparkling victory chime overtones
+        const chimes = [1046.50, 1567.98, 2093.00, 2637.02];
+        chimes.forEach((f, idx) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, now + 0.28 + (idx * 0.04));
+          gain.gain.setValueAtTime(0.07, now + 0.28 + (idx * 0.04));
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now + 0.28 + (idx * 0.04));
+          osc.stop(now + 0.9);
+        });
+      } catch (e) {}
+    }
+
+    function playFanfareSound() {
+      playGrandLotteryFanfare();
+    }
+
+    function playPositiveSound() {
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.09, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+      } catch (e) {}
+    }
+
+    function playNegativeSound() {
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(260, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(160, audioCtx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.07, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.25);
+      } catch (e) {}
+    }
+  </script>
+
+  <!-- ==================== CENTRAL DATABASE SERVICE (SQLite BACKEND) ==================== -->
+  <script>
+    const DBService = {
+      data: {
+        classes: {
+          "6": { full: [], remaining: [], history: [], scores: {}, tokens: {}, hwScores: {}, hwTokens: {}, testScores: {}, testTokens: {} },
+          "7": { full: [], remaining: [], history: [], scores: {}, tokens: {}, hwScores: {}, hwTokens: {}, testScores: {}, testTokens: {} },
+          "8": { full: [], remaining: [], history: [], scores: {}, tokens: {}, hwScores: {}, hwTokens: {}, testScores: {}, testTokens: {} }
+        }
+      },
+      isOnline: true,
+
+      async init(onReady) {
+        try {
+          const res = await fetch('/api/data');
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data && json.data.classes) {
+              this.data = json.data;
+              this.setConnected(true);
+            }
+          } else {
+            this.setConnected(false);
+          }
+        } catch (e) {
+          console.warn("SQLite API bağlantı uyarısı:", e);
+          this.setConnected(false);
+        }
+        if (typeof onReady === 'function') onReady();
+      },
+
+      setConnected(status) {
+        this.isOnline = status;
+        const badge = document.getElementById('dbStatusBadge');
+        if (badge) {
+          if (status) {
+            badge.className = "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 shadow-sm";
+            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span class="hidden sm:inline">SQLite Aktif</span>`;
+          } else {
+            badge.className = "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-950/60 border border-rose-500/30 text-[11px] font-bold text-rose-400 shadow-sm";
+            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span><span class="hidden sm:inline">Sunucu Bağlantısı Yok</span>`;
+          }
+        }
+      },
+
+      getClass(classKey) {
+        return this.data.classes[classKey] || { full: [], remaining: [], history: [], scores: {}, tokens: {}, hwScores: {}, hwTokens: {}, testScores: {}, testTokens: {} };
+      },
+
+      // Ders İçi
+      getScore(classKey, name) {
+        const cls = this.getClass(classKey);
+        if (!cls.scores) cls.scores = {};
+        if (!cls.scores[name]) cls.scores[name] = { plus: 0, minus: 0 };
+        return cls.scores[name];
+      },
+
+      getTokens(classKey, name) {
+        const cls = this.getClass(classKey);
+        if (!cls.tokens) cls.tokens = {};
+        if (!cls.tokens[name]) cls.tokens[name] = [];
+        return cls.tokens[name];
+      },
+
+      async updateScore(classKey, name, delta) {
+        // Optimistic UI update
+        const sc = this.getScore(classKey, name);
+        const tokens = this.getTokens(classKey, name);
+        if (delta > 0) {
+          sc.plus += delta;
+          tokens.push("+");
+          playPositiveSound();
+        } else if (delta < 0) {
+          sc.minus += Math.abs(delta);
+          tokens.push("-");
+          playNegativeSound();
+        }
+
+        try {
+          const res = await fetch('/api/score/dersici', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ classKey, studentName: name, delta })
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              this.data = json.data;
+              this.setConnected(true);
+            }
+          }
+        } catch (e) {
+          this.setConnected(false);
+        }
+      },
+
+      // Ödev
+      getHwScore(classKey, name) {
+        const cls = this.getClass(classKey);
+        if (!cls.hwScores) cls.hwScores = {};
+        if (!cls.hwScores[name]) cls.hwScores[name] = { plus: 0, minus: 0 };
+        return cls.hwScores[name];
+      },
+
+      getHwTokens(classKey, name) {
+        const cls = this.getClass(classKey);
+        if (!cls.hwTokens) cls.hwTokens = {};
+        if (!cls.hwTokens[name]) cls.hwTokens[name] = [];
+        return cls.hwTokens[name];
+      },
+
+      async updateHwScore(classKey, name, delta) {
+        const sc = this.getHwScore(classKey, name);
+        const tokens = this.getHwTokens(classKey, name);
+        if (delta > 0) {
+          sc.plus += delta;
+          tokens.push("+");
+          playPositiveSound();
+        } else if (delta < 0) {
+          sc.minus += Math.abs(delta);
+          tokens.push("-");
+          playNegativeSound();
+        }
+
+        try {
+          const res = await fetch('/api/score/odev', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ classKey, studentName: name, delta })
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              this.data = json.data;
+              this.setConnected(true);
+            }
+          }
+        } catch (e) {
+          this.setConnected(false);
+        }
+      },
+
+      // Test (3, 2, 1 puan)
+      getTestScore(classKey, name) {
+        const cls = this.getClass(classKey);
+        if (!cls.testScores) cls.testScores = {};
+        if (cls.testScores[name] === undefined) cls.testScores[name] = 0;
+        return cls.testScores[name];
+      },
+
+      getTestTokens(classKey, name) {
+        const cls = this.getClass(classKey);
+        if (!cls.testTokens) cls.testTokens = {};
+        if (!cls.testTokens[name]) cls.testTokens[name] = [];
+        return cls.testTokens[name];
+      },
+
+      async updateTestScore(classKey, name, delta) {
+        const cls = this.getClass(classKey);
+        if (!cls.testScores) cls.testScores = {};
+        if (cls.testScores[name] === undefined) cls.testScores[name] = 0;
+        if (!cls.testTokens) cls.testTokens = {};
+        if (!cls.testTokens[name]) cls.testTokens[name] = [];
+
+        cls.testScores[name] += delta;
+        if (delta > 0) {
+          cls.testTokens[name].push(`+${delta}`);
+          if (delta === 3) {
+            playFanfareSound();
+            try {
+              if (typeof confetti === 'function') {
+                confetti({
+                  particleCount: 40,
+                  spread: 60,
+                  origin: { y: 0.6 }
+                });
+              }
+            } catch(e) {}
+          } else {
+            playPositiveSound();
+          }
+        } else if (delta < 0) {
+          cls.testTokens[name].push(`${delta}`);
+          playNegativeSound();
+        }
+
+        try {
+          const res = await fetch('/api/score/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ classKey, studentName: name, delta })
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              this.data = json.data;
+              this.setConnected(true);
+            }
+          }
+        } catch (e) {
+          this.setConnected(false);
+        }
+      },
+
+      // Kura Çekimi Kaydı
+      async recordDraw(classKey, studentName, autoRemove) {
+        try {
+          const res = await fetch('/api/draw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ classKey, studentName, autoRemove })
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              this.data = json.data;
+              this.setConnected(true);
+              updateClassTabs();
+              updateDrawUI();
+            }
+          }
+        } catch (e) {
+          this.setConnected(false);
+        }
+      },
+
+      // Havuzdan Çıkar
+      async manualRemoveFromPool(classKey, studentName) {
+        try {
+          const res = await fetch('/api/pool/remove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ classKey, studentName })
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              this.data = json.data;
+              this.setConnected(true);
+              updateClassTabs();
+              updateDrawUI();
+            }
+          }
+        } catch (e) {
+          this.setConnected(false);
+        }
+      },
+
+      // Havuzu Başa Al
+      async resetClassDrawPool(classKey) {
+        try {
+          const res = await fetch('/api/pool/reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ classKey })
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              this.data = json.data;
+              this.setConnected(true);
+              updateClassTabs();
+              updateDrawUI();
+            }
+          }
+        } catch (e) {
+          this.setConnected(false);
+        }
+      },
+
+      // Puanları Sıfırla
+      async resetScores(classKey, type) {
+        try {
+          const res = await fetch('/api/scores/reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ classKey, type })
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              this.data = json.data;
+              this.setConnected(true);
+              switchClass(activeClass);
+            }
+          }
+        } catch (e) {
+          this.setConnected(false);
+        }
+      },
+
+      // Öğrenci Listesi Düzenleme
+      async updateStudentList(classKey, names) {
+        try {
+          const res = await fetch('/api/students/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ classKey, names })
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              this.data = json.data;
+              this.setConnected(true);
+              switchClass(activeClass);
+            }
+          }
+        } catch (e) {
+          this.setConnected(false);
+        }
+      },
+
+      // Yedek Geri Yükle
+      async restoreBackup(backupData) {
+        try {
+          const res = await fetch('/api/restore', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ backupData })
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              this.data = json.data;
+              this.setConnected(true);
+              switchClass(activeClass);
+              alert("Veritabanı başarıyla geri yüklendi.");
+            }
+          }
+        } catch (e) {
+          this.setConnected(false);
+          alert("Yedek geri yüklenirken hata oluştu.");
+        }
+      }
+    };
+  </script>
+
+  <!-- ==================== UI CONTROLLER LOGIC ==================== -->
+  <script>
+    let activeClass = "7";
+    let activePage = "kura"; // 'kura', 'dersici', 'odev', 'test', 'geneldurum'
+    let isRolling = false;
+    let currentDrawnStudent = null;
+
+    function switchPage(pageKey) {
+      activePage = pageKey;
+      const pages = ['kura', 'dersici', 'odev', 'test', 'geneldurum'];
+      
+      pages.forEach(p => {
+        const el = document.getElementById(`page-${p}`);
+        const btn = document.getElementById(`navBtn-${p}`);
+        
+        if (p === pageKey) {
+          el.classList.remove('hidden');
+          if (p === 'kura') btn.className = "px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-indigo-600 text-white shadow-sm shrink-0";
+          else if (p === 'dersici') btn.className = "px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-indigo-600 text-white shadow-sm shrink-0";
+          else if (p === 'odev') btn.className = "px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-amber-600 text-white shadow-sm shrink-0";
+          else if (p === 'test') btn.className = "px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-purple-600 text-white shadow-sm shrink-0";
+          else if (p === 'geneldurum') btn.className = "px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-cyan-600 text-white shadow-sm shrink-0";
+        } else {
+          el.classList.add('hidden');
+          btn.className = "px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white shrink-0";
+        }
+      });
+
+      if (pageKey === 'kura') updateDrawUI();
+      else if (pageKey === 'dersici') renderDersIciTable();
+      else if (pageKey === 'odev') renderOdevTable();
+      else if (pageKey === 'test') renderTestTable();
+      else if (pageKey === 'geneldurum') renderGenelTable();
+    }
+
+    function switchClass(classKey) {
+      if (isRolling) return;
+      activeClass = classKey;
+      currentDrawnStudent = null;
+
+      const nameCard = document.getElementById('nameCard');
+      const nameText = document.getElementById('drawnNameText');
+      const winnerBadge = document.getElementById('winnerBadge');
+      const starBadge = document.getElementById('drawnStarBadgeWrap');
+      const scorePanel = document.getElementById('drawnStudentScorePanel');
+
+      if (nameCard) nameCard.className = "w-full max-w-xl min-h-[200px] flex flex-col items-center justify-center p-6 sm:p-8 rounded-2xl dark-card-inner transition-all duration-300 relative border border-slate-800";
+      if (nameText) {
+        nameText.textContent = "Kura Çekmeye Hazır";
+        nameText.className = "text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight text-center uppercase select-all leading-snug transition-all duration-200";
+      }
+      if (winnerBadge) winnerBadge.classList.add('hidden');
+      if (starBadge) starBadge.classList.add('hidden');
+      if (scorePanel) scorePanel.classList.add('hidden');
+
+      updateClassTabs();
+      updateDrawUI();
+      if (activePage === 'dersici') renderDersIciTable();
+      if (activePage === 'odev') renderOdevTable();
+      if (activePage === 'test') renderTestTable();
+      if (activePage === 'geneldurum') renderGenelTable();
+    }
+
+    function updateClassTabs() {
+      ['6', '7', '8'].forEach(k => {
+        const tab = document.getElementById(`tab-${k}`);
+        const badge = document.getElementById(`badge-${k}`);
+        const cls = DBService.getClass(k);
+        badge.textContent = `${cls.remaining.length}/${cls.full.length}`;
+
+        if (k === activeClass) {
+          tab.className = "flex-1 min-w-[130px] py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 bg-slate-800 text-white border-indigo-500/60 shadow-sm";
+          badge.className = "text-[11px] px-2 py-0.5 rounded-md bg-indigo-600 text-white font-mono";
+        } else {
+          tab.className = "flex-1 min-w-[130px] py-2.5 px-4 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center justify-between gap-2 bg-slate-900/80 text-slate-400 border-slate-800 hover:border-slate-700";
+          badge.className = "text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono";
+        }
+      });
+
+      document.getElementById('drawClassTag').textContent = `${activeClass}. Sınıf Kurası`;
+      document.getElementById('historyClassTitle').textContent = `${activeClass}. Sınıf`;
+      document.getElementById('accordionClassTitle').textContent = `${activeClass}. Sınıf`;
+      document.getElementById('dersiciClassTitle').textContent = `${activeClass}. Sınıf`;
+      document.getElementById('odevClassTitle').textContent = `${activeClass}. Sınıf`;
+      document.getElementById('testClassTitle').textContent = `${activeClass}. Sınıf`;
+      document.getElementById('genelClassTitle').textContent = `${activeClass}. Sınıf`;
+    }
+
+    function renderSymbolSequenceHTML(tokens, maxTokens = 15) {
+      if (!tokens || tokens.length === 0) {
+        return `<span class="text-slate-600 font-mono text-xs">-</span>`;
+      }
+      return tokens.slice(-maxTokens).map(t => {
+        if (t === '+') return `<span class="sym-plus">+</span>`;
+        return `<span class="sym-minus">-</span>`;
+      }).join(' ');
+    }
+
+    function renderTestSymbolSequenceHTML(tokens, maxTokens = 15) {
+      if (!tokens || tokens.length === 0) {
+        return `<span class="text-slate-600 font-mono text-xs">-</span>`;
+      }
+      return tokens.slice(-maxTokens).map(t => {
+        if (t === '+3' || t === 3) return `<span class="sym-test-3" title="3 Puan (1 Yıldız ⭐)"><i class="fa-solid fa-star text-amber-400 mr-1 text-[10px]"></i>+3</span>`;
+        if (t === '+2' || t === 2) return `<span class="sym-test-2">+2</span>`;
+        if (t === '+1' || t === 1) return `<span class="sym-test-1">+1</span>`;
+        return `<span class="sym-test-neg">${t}</span>`;
+      }).join(' ');
+    }
+
+    // ==================== 1. KURA LOGIC ====================
+    function updateDrawUI() {
+      const cur = DBService.getClass(activeClass);
+      document.getElementById('remainingCount').textContent = cur.remaining.length;
+      document.getElementById('drawnCount').textContent = cur.history.length;
+      document.getElementById('totalPoolCount').textContent = cur.full.length;
+      document.getElementById('remainingBadgeCount').textContent = cur.remaining.length;
+      document.getElementById('drawOrderDisplay').textContent = `#${cur.history.length + 1}`;
+
+      let totalNet = 0;
+      cur.full.forEach(name => {
+        const sc = DBService.getScore(activeClass, name);
+        totalNet += (sc.plus - sc.minus);
+      });
+      document.getElementById('classTotalNetScore').textContent = totalNet > 0 ? `+${totalNet}` : totalNet;
+
+      const poolContainer = document.getElementById('remainingPoolList');
+      poolContainer.innerHTML = '';
+      if (cur.remaining.length === 0) {
+        poolContainer.innerHTML = `<div class="col-span-full text-center py-3 text-slate-500 text-xs font-semibold">Tüm öğrencilerin kurası tamamlandı.</div>`;
+      } else {
+        cur.remaining.forEach(name => {
+          const sc = DBService.getScore(activeClass, name);
+          const net = sc.plus - sc.minus;
+          let netBadgeClass = net > 0 ? 'badge-pos' : (net < 0 ? 'badge-neg' : 'badge-zero');
+
+          const badge = document.createElement('div');
+          badge.className = 'p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-xs font-medium text-slate-300 flex items-center justify-between group hover:border-slate-700 transition';
+          badge.innerHTML = `
+            <span class="truncate font-semibold">${name}</span>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono ${netBadgeClass}">
+                ${net > 0 ? '+' + net : net}
+              </span>
+              <button onclick="manualRemoveFromPool('${name}')" title="Havuzdan Çıkar" class="text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition text-xs ml-1">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          `;
+          poolContainer.appendChild(badge);
+        });
+      }
+
+      const historyContainer = document.getElementById('drawnListContainer');
+      historyContainer.querySelectorAll('.drawn-item').forEach(el => el.remove());
+      const emptyMsg = document.getElementById('emptyDrawnMsg');
+
+      if (cur.history.length === 0) {
+        emptyMsg.style.display = 'flex';
+      } else {
+        emptyMsg.style.display = 'none';
+
+        // En sondan ilke doğru (Son çekilen en üstte)
+        const reversedHistory = cur.history.map((item, index) => ({
+          name: item.name,
+          time: item.time,
+          drawIndex: index + 1
+        })).reverse();
+
+        reversedHistory.forEach((item, rIdx) => {
+          const sc = DBService.getScore(activeClass, item.name);
+          const tokens = DBService.getTokens(activeClass, item.name);
+          const net = sc.plus - sc.minus;
+          const isLatest = (rIdx === 0);
+
+          const row = document.createElement('div');
+          row.className = `drawn-item p-3 rounded-xl border transition flex items-center justify-between gap-2 ${
+            isLatest 
+              ? 'bg-slate-900 border-amber-500/40 shadow-sm shadow-amber-500/5' 
+              : 'bg-slate-900/90 border-slate-800 hover:bg-slate-850'
+          }`;
+          
+          row.innerHTML = `
+            <div class="flex items-center gap-2.5 truncate">
+              <span class="w-6 h-6 rounded-md ${isLatest ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 border border-slate-700 text-slate-300'} flex items-center justify-center text-xs font-bold shrink-0">
+                ${item.drawIndex}
+              </span>
+              <div class="truncate">
+                <div class="flex items-center gap-1.5 truncate">
+                  <p class="font-bold text-xs text-slate-200 truncate">${item.name}</p>
+                  ${isLatest ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-semibold uppercase shrink-0">Son</span>' : ''}
+                </div>
+                <div class="mt-0.5 flex items-center gap-1">${renderSymbolSequenceHTML(tokens, 4)}</div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button onclick="handleKuraScoreChange('${item.name}', 1)" class="w-7 h-7 rounded-lg bg-emerald-950/80 border border-emerald-500/30 hover:bg-emerald-600 text-emerald-300 hover:text-white flex items-center justify-center text-xs font-bold transition" title="Artı Ekle (+1)">
+                <i class="fa-solid fa-plus text-[10px]"></i>
+              </button>
+              <button onclick="handleKuraScoreChange('${item.name}', -1)" class="w-7 h-7 rounded-lg bg-rose-950/80 border border-rose-500/30 hover:bg-rose-600 text-rose-300 hover:text-white flex items-center justify-center text-xs font-bold transition" title="Eksi Ekle (-1)">
+                <i class="fa-solid fa-minus text-[10px]"></i>
+              </button>
+              <span class="min-w-[36px] text-center px-1.5 py-0.5 rounded text-[11px] font-bold font-mono ${net > 0 ? 'badge-pos' : (net < 0 ? 'badge-neg' : 'badge-zero')}">
+                ${net > 0 ? '+' + net : net}
+              </span>
+            </div>
+          `;
+          historyContainer.appendChild(row);
+        });
+      }
+
+      const drawBtn = document.getElementById('drawBtn');
+      if (cur.remaining.length === 0 && !isRolling) {
+        drawBtn.disabled = true;
+        drawBtn.classList.add('opacity-40', 'cursor-not-allowed');
+      } else {
+        drawBtn.disabled = isRolling;
+        drawBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+      }
+
+      if (currentDrawnStudent) {
+        updateDrawnCardScore(currentDrawnStudent);
+      }
+    }
+
+    function startDraw() {
+      const cur = DBService.getClass(activeClass);
+      if (isRolling) return;
+      if (cur.remaining.length === 0) {
+        alert(`${activeClass}. Sınıf için havuzda öğrenci kalmadı.`);
+        return;
+      }
+
+      isRolling = true;
+      const drawBtn = document.getElementById('drawBtn');
+      const nameCard = document.getElementById('nameCard');
+      const nameText = document.getElementById('drawnNameText');
+      const winnerBadge = document.getElementById('winnerBadge');
+      const starBadge = document.getElementById('drawnStarBadgeWrap');
+      const scorePanel = document.getElementById('drawnStudentScorePanel');
+
+      if (drawBtn) drawBtn.disabled = true;
+      if (winnerBadge) winnerBadge.classList.add('hidden');
+      if (starBadge) starBadge.classList.add('hidden');
+      if (scorePanel) scorePanel.classList.add('hidden');
+
+      if (nameCard) {
+        nameCard.classList.remove('winner-card-active');
+        nameCard.classList.add('rolling-card-active');
+      }
+      if (nameText) {
+        nameText.classList.remove('winner-name-shimmer');
+        nameText.classList.add('rolling-name-blur');
+      }
+
+      let counter = 0;
+      const totalSteps = 16; // Balanced & pleasant classroom pace (~1.3s)
+      let delay = 45;
+
+      function step() {
+        const randomIndex = Math.floor(Math.random() * cur.remaining.length);
+        const candidateName = cur.remaining[randomIndex];
+        nameText.textContent = candidateName;
+
+        playTickSound(counter, totalSteps);
+        counter++;
+
+        if (counter < totalSteps) {
+          // Controlled deceleration in the last 6 steps
+          if (counter >= 10) {
+            delay += 25;
+          }
+          setTimeout(step, delay);
+        } else {
+          finishDraw();
+        }
+      }
+
+      step();
+    }
+
+    function finishDraw() {
+      const cur = DBService.getClass(activeClass);
+      const chosenIndex = Math.floor(Math.random() * cur.remaining.length);
+      const chosenStudent = cur.remaining[chosenIndex];
+      currentDrawnStudent = chosenStudent;
+
+      const autoRemove = document.getElementById('autoRemoveToggle').checked;
+      
+      // Persist draw to SQLite
+      DBService.recordDraw(activeClass, chosenStudent, autoRemove);
+
+      isRolling = false;
+      const drawBtn = document.getElementById('drawBtn');
+      const nameCard = document.getElementById('nameCard');
+      const nameText = document.getElementById('drawnNameText');
+      const winnerBadge = document.getElementById('winnerBadge');
+      const scorePanel = document.getElementById('drawnStudentScorePanel');
+
+      if (drawBtn) drawBtn.disabled = false;
+
+      // Card & Name Reveal Animations
+      if (nameCard) {
+        nameCard.classList.remove('rolling-card-active');
+        nameCard.classList.add('winner-card-active');
+      }
+      if (nameText) {
+        nameText.classList.remove('rolling-name-blur');
+        nameText.classList.add('winner-name-shimmer');
+        nameText.textContent = chosenStudent;
+      }
+      if (winnerBadge) winnerBadge.classList.remove('hidden');
+
+      // Update and show Ders İçi score panel
+      updateDrawnCardScore(chosenStudent);
+      if (scorePanel) scorePanel.classList.remove('hidden');
+
+      // Triumphant Grand Fanfare Sound
+      playGrandLotteryFanfare();
+
+      // Multi-cannon Exciting Confetti Show (Snappy & Energetic)
+      try {
+        if (typeof confetti === 'function') {
+          // 1. Center Firework Burst
+          confetti({
+            particleCount: 75,
+            spread: 85,
+            origin: { y: 0.55 },
+            colors: ['#f59e0b', '#10b981', '#6366f1', '#ec4899', '#ffffff']
+          });
+
+          // 2. Left Cannon Shot
+          setTimeout(() => {
+            confetti({
+              particleCount: 45,
+              angle: 60,
+              spread: 55,
+              origin: { x: 0.05, y: 0.65 },
+              colors: ['#fbbf24', '#34d399', '#818cf8', '#ffffff']
+            });
+          }, 80);
+
+          // 3. Right Cannon Shot
+          setTimeout(() => {
+            confetti({
+              particleCount: 45,
+              angle: 120,
+              spread: 55,
+              origin: { x: 0.95, y: 0.65 },
+              colors: ['#fbbf24', '#34d399', '#818cf8', '#ffffff']
+            });
+          }, 160);
+        }
+      } catch (e) {}
+
+      updateClassTabs();
+      updateDrawUI();
+    }
+
+    function updateDrawnCardScore(studentName) {
+      const score = DBService.getScore(activeClass, studentName);
+      const tokens = DBService.getTokens(activeClass, studentName);
+      const net = score.plus - score.minus;
+      
+      const symEl = document.getElementById('cardScoreSymbols');
+      if (symEl) symEl.innerHTML = renderSymbolSequenceHTML(tokens, 6);
+      
+      const netEl = document.getElementById('cardScoreNet');
+      if (netEl) {
+        netEl.textContent = `Net: ${net > 0 ? '+' + net : net}`;
+        netEl.className = net > 0 ? "font-bold font-mono text-emerald-400" : (net < 0 ? "font-bold font-mono text-rose-400" : "font-bold font-mono text-slate-300");
+      }
+
+      // Star badge if earned in tests
+      const tTokens = DBService.getTestTokens(activeClass, studentName);
+      const stars = tTokens.filter(t => t === '+3' || t === 3 || String(t).includes('3')).length;
+      const starWrap = document.getElementById('drawnStarBadgeWrap');
+      if (starWrap) {
+        if (stars > 0) {
+          starWrap.innerHTML = `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/80 border border-amber-500/50 text-amber-300 text-xs font-bold font-mono shadow-md animate-pulse">
+            <i class="fa-solid fa-star text-amber-400"></i> ${stars} Yıldız Kazanıldı ⭐
+          </span>`;
+          starWrap.classList.remove('hidden');
+        } else {
+          starWrap.classList.add('hidden');
+        }
+      }
+    }
+
+    function addPointToDrawn(delta) {
+      if (!currentDrawnStudent) return;
+      DBService.updateScore(activeClass, currentDrawnStudent, delta);
+      updateDrawnCardScore(currentDrawnStudent);
+      updateDrawUI();
+    }
+
+    function handleKuraScoreChange(studentName, delta) {
+      DBService.updateScore(activeClass, studentName, delta);
+      if (currentDrawnStudent === studentName) updateDrawnCardScore(studentName);
+      updateDrawUI();
+    }
+
+    function manualRemoveFromPool(name) {
+      if (confirm(`"${name}" adlı öğrenciyi kura havuzundan çıkarmak istiyor musunuz?`)) {
+        DBService.manualRemoveFromPool(activeClass, name);
+      }
+    }
+
+    function resetClassDrawPool() {
+      if (confirm(`${activeClass}. Sınıfın kura havuzunu sıfırlamak istiyor musunuz? (Puanlar korunur)`)) {
+        currentDrawnStudent = null;
+        document.getElementById('drawnNameText').textContent = "Kura Çekmeye Hazır";
+        document.getElementById('drawnStudentScorePanel').classList.add('hidden');
+        DBService.resetClassDrawPool(activeClass);
+      }
+    }
+
+    function toggleRemainingPool() {
+      document.getElementById('remainingPoolList').classList.toggle('hidden');
+      document.getElementById('remainingToggleIcon').classList.toggle('rotate-180');
+    }
+
+    // ==================== 2. DERS İÇİ LOGIC ====================
+    function renderDersIciTable() {
+      const cur = DBService.getClass(activeClass);
+      const search = document.getElementById('dersiciSearchInput').value.trim().toLowerCase();
+      const sortType = document.getElementById('dersiciSortSelect').value;
+      const tbody = document.getElementById('dersiciTableBody');
+      tbody.innerHTML = '';
+
+      let list = [...cur.full];
+      if (search) list = list.filter(n => n.toLowerCase().includes(search));
+
+      list.sort((a, b) => {
+        const scA = DBService.getScore(activeClass, a);
+        const scB = DBService.getScore(activeClass, b);
+        const netA = scA.plus - scA.minus;
+        const netB = scB.plus - scB.minus;
+
+        if (sortType === 'least-participated') {
+          const totalA = scA.plus + scA.minus;
+          const totalB = scB.plus + scB.minus;
+          if (totalA !== totalB) return totalA - totalB;
+          return netA - netB;
+        }
+        if (sortType === 'net-desc') return netB - netA;
+        if (sortType === 'plus-desc') return scB.plus - scA.plus;
+        if (sortType === 'minus-desc') return scB.minus - scA.minus;
+        return a.localeCompare(b, 'tr');
+      });
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500 font-semibold text-xs"><i class="fa-solid fa-magnifying-glass mr-2"></i>Aradığınız kriterde öğrenci bulunamadı.</td></tr>`;
+        return;
+      }
+
+      list.forEach((name, index) => {
+        const sc = DBService.getScore(activeClass, name);
+        const tokens = DBService.getTokens(activeClass, name);
+        const net = sc.plus - sc.minus;
+        let badgeClass = net > 0 ? 'badge-pos' : (net < 0 ? 'badge-neg' : 'badge-zero');
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-900/60 transition";
+        tr.innerHTML = `
+          <td class="p-3.5 text-center text-slate-500 font-mono">${index + 1}</td>
+          <td class="p-3.5 font-bold text-slate-100 text-sm">${name}</td>
+          <td class="p-3.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              ${renderSymbolSequenceHTML(tokens, 20)}
+            </div>
+          </td>
+          <td class="p-3.5 text-center">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-bold font-mono ${badgeClass}">
+              ${net > 0 ? '+' + net : net}
+            </span>
+          </td>
+          <td class="p-3.5 text-right">
+            <div class="inline-flex items-center gap-1.5">
+              <button onclick="handleDersIciScoreChange('${name}', 1)" class="w-8 h-8 rounded-lg bg-emerald-950/80 border border-emerald-500/40 hover:bg-emerald-600 text-emerald-300 hover:text-white flex items-center justify-center font-bold text-xs transition active:scale-95" title="+1 Artı">
+                <i class="fa-solid fa-plus text-xs"></i>
+              </button>
+              <button onclick="handleDersIciScoreChange('${name}', -1)" class="w-8 h-8 rounded-lg bg-rose-950/80 border border-rose-500/40 hover:bg-rose-600 text-rose-300 hover:text-white flex items-center justify-center font-bold text-xs transition active:scale-95" title="-1 Eksi">
+                <i class="fa-solid fa-minus text-xs"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function handleDersIciScoreChange(studentName, delta) {
+      DBService.updateScore(activeClass, studentName, delta);
+      renderDersIciTable();
+      updateDrawUI();
+    }
+
+    function resetCurrentClassScores() {
+      if (confirm(`${activeClass}. Sınıfın tüm ders içi artı ve eksi puanlarını sıfırlamak istiyor musunuz?`)) {
+        DBService.resetScores(activeClass, 'dersici');
+      }
+    }
+
+    // ==================== 3. ÖDEV LOGIC ====================
+    function renderOdevTable() {
+      const cur = DBService.getClass(activeClass);
+      const search = document.getElementById('odevSearchInput').value.trim().toLowerCase();
+      const sortType = document.getElementById('odevSortSelect').value;
+      const tbody = document.getElementById('odevTableBody');
+      tbody.innerHTML = '';
+
+      let list = [...cur.full];
+      if (search) list = list.filter(n => n.toLowerCase().includes(search));
+
+      list.sort((a, b) => {
+        const scA = DBService.getHwScore(activeClass, a);
+        const scB = DBService.getHwScore(activeClass, b);
+        const netA = scA.plus - scA.minus;
+        const netB = scB.plus - scB.minus;
+
+        if (sortType === 'least-participated') {
+          const totalA = scA.plus + scA.minus;
+          const totalB = scB.plus + scB.minus;
+          if (totalA !== totalB) return totalA - totalB;
+          return netA - netB;
+        }
+        if (sortType === 'net-desc') return netB - netA;
+        if (sortType === 'plus-desc') return scB.plus - scA.plus;
+        if (sortType === 'minus-desc') return scB.minus - scA.minus;
+        return a.localeCompare(b, 'tr');
+      });
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500 font-semibold text-xs"><i class="fa-solid fa-magnifying-glass mr-2"></i>Aradığınız kriterde öğrenci bulunamadı.</td></tr>`;
+        return;
+      }
+
+      list.forEach((name, index) => {
+        const sc = DBService.getHwScore(activeClass, name);
+        const tokens = DBService.getHwTokens(activeClass, name);
+        const net = sc.plus - sc.minus;
+        let badgeClass = net > 0 ? 'badge-pos' : (net < 0 ? 'badge-neg' : 'badge-zero');
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-900/60 transition";
+        tr.innerHTML = `
+          <td class="p-3.5 text-center text-slate-500 font-mono">${index + 1}</td>
+          <td class="p-3.5 font-bold text-slate-100 text-sm">${name}</td>
+          <td class="p-3.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              ${renderSymbolSequenceHTML(tokens, 20)}
+            </div>
+          </td>
+          <td class="p-3.5 text-center">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-bold font-mono ${badgeClass}">
+              ${net > 0 ? '+' + net : net}
+            </span>
+          </td>
+          <td class="p-3.5 text-right">
+            <div class="inline-flex items-center gap-1.5">
+              <button onclick="handleOdevScoreChange('${name}', 1)" class="w-8 h-8 rounded-lg bg-emerald-950/80 border border-emerald-500/40 hover:bg-emerald-600 text-emerald-300 hover:text-white flex items-center justify-center font-bold text-xs transition active:scale-95" title="+1 Artı (Ödev Yaptı)">
+                <i class="fa-solid fa-plus text-xs"></i>
+              </button>
+              <button onclick="handleOdevScoreChange('${name}', -1)" class="w-8 h-8 rounded-lg bg-rose-950/80 border border-rose-500/40 hover:bg-rose-600 text-rose-300 hover:text-white flex items-center justify-center font-bold text-xs transition active:scale-95" title="-1 Eksi (Ödev Yapmadı)">
+                <i class="fa-solid fa-minus text-xs"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function handleOdevScoreChange(studentName, delta) {
+      DBService.updateHwScore(activeClass, studentName, delta);
+      renderOdevTable();
+    }
+
+    function resetCurrentClassHwScores() {
+      if (confirm(`${activeClass}. Sınıfın tüm ödev artı ve eksi puanlarını sıfırlamak istiyor musunuz?`)) {
+        DBService.resetScores(activeClass, 'odev');
+      }
+    }
+
+    // ==================== 4. TEST LOGIC ====================
+    function renderTestTable() {
+      const cur = DBService.getClass(activeClass);
+      const search = document.getElementById('testSearchInput').value.trim().toLowerCase();
+      const sortType = document.getElementById('testSortSelect').value;
+      const tbody = document.getElementById('testTableBody');
+      tbody.innerHTML = '';
+
+      let list = [...cur.full];
+      if (search) list = list.filter(n => n.toLowerCase().includes(search));
+
+      list.sort((a, b) => {
+        const scA = DBService.getTestScore(activeClass, a);
+        const scB = DBService.getTestScore(activeClass, b);
+        if (sortType === 'score-desc') return scB - scA;
+        if (sortType === 'score-asc') return scA - scB;
+        return a.localeCompare(b, 'tr');
+      });
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500 font-semibold text-xs"><i class="fa-solid fa-magnifying-glass mr-2"></i>Aradığınız kriterde öğrenci bulunamadı.</td></tr>`;
+        return;
+      }
+
+      list.forEach((name, index) => {
+        const score = DBService.getTestScore(activeClass, name);
+        const tokens = DBService.getTestTokens(activeClass, name);
+        let badgeClass = score > 0 ? 'bg-purple-950/80 text-purple-300 border border-purple-500/40' : (score < 0 ? 'badge-neg' : 'badge-zero');
+
+        const stars = tokens.filter(t => t === '+3' || t === 3 || String(t).includes('3')).length;
+        let starBadge = '';
+        if (stars > 0) {
+          starBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-950/70 border border-amber-500/40 text-amber-300 text-[11px] font-bold font-mono ml-2 shadow-sm" title="${stars} Yıldız (Her 3 puanda 1 yıldız)">
+            <i class="fa-solid fa-star text-amber-400"></i> ${stars > 1 ? '<span class="font-black">' + stars + '</span>' : ''}
+          </span>`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-900/60 transition";
+        tr.innerHTML = `
+          <td class="p-3.5 text-center text-slate-500 font-mono">${index + 1}</td>
+          <td class="p-3.5 font-bold text-slate-100 text-sm whitespace-nowrap flex items-center">
+            <span>${name}</span>
+            ${starBadge}
+          </td>
+          <td class="p-3.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              ${renderTestSymbolSequenceHTML(tokens, 20)}
+            </div>
+          </td>
+          <td class="p-3.5 text-center">
+            <span class="px-2.5 py-1 rounded-lg text-xs font-bold font-mono ${badgeClass}">
+              ${score > 0 ? '+' + score : score}
+            </span>
+          </td>
+          <td class="p-3.5 text-right">
+            <div class="inline-flex items-center gap-1.5">
+              <button onclick="handleTestScoreChange('${name}', 3)" class="w-8 h-8 rounded-lg bg-purple-950/80 border border-purple-500/40 hover:bg-purple-600 text-purple-300 hover:text-white flex items-center justify-center font-bold text-xs font-mono transition active:scale-95 shadow-sm" title="3 Puan (+1 Yıldız ⭐)">
+                3
+              </button>
+              <button onclick="handleTestScoreChange('${name}', 2)" class="w-8 h-8 rounded-lg bg-sky-950/80 border border-sky-500/40 hover:bg-sky-600 text-sky-300 hover:text-white flex items-center justify-center font-bold text-xs font-mono transition active:scale-95 shadow-sm" title="2 Puan">
+                2
+              </button>
+              <button onclick="handleTestScoreChange('${name}', 1)" class="w-8 h-8 rounded-lg bg-emerald-950/80 border border-emerald-500/40 hover:bg-emerald-600 text-emerald-300 hover:text-white flex items-center justify-center font-bold text-xs font-mono transition active:scale-95 shadow-sm" title="1 Puan">
+                1
+              </button>
+              <button onclick="handleTestScoreChange('${name}', -1)" class="w-7 h-8 rounded-lg bg-slate-900 border border-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 flex items-center justify-center font-bold text-xs transition active:scale-95" title="-1 Puan Azalt">
+                <i class="fa-solid fa-minus text-[10px]"></i>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function handleTestScoreChange(studentName, delta) {
+      DBService.updateTestScore(activeClass, studentName, delta);
+      renderTestTable();
+    }
+
+    function resetCurrentClassTestScores() {
+      if (confirm(`${activeClass}. Sınıfın tüm test puanlarını sıfırlamak istiyor musunuz?`)) {
+        DBService.resetScores(activeClass, 'test');
+      }
+    }
+
+    // ==================== 5. GENEL DURUM LOGIC ====================
+    function renderGenelTable() {
+      const cur = DBService.getClass(activeClass);
+      const search = document.getElementById('genelSearchInput').value.trim().toLowerCase();
+      const sortType = document.getElementById('genelSortSelect').value;
+      const tbody = document.getElementById('genelTableBody');
+      tbody.innerHTML = '';
+
+      let list = [...cur.full];
+      if (search) list = list.filter(n => n.toLowerCase().includes(search));
+
+      list.sort((a, b) => {
+        const dScA = DBService.getScore(activeClass, a);
+        const dScB = DBService.getScore(activeClass, b);
+        const dNetA = dScA.plus - dScA.minus;
+        const dNetB = dScB.plus - dScB.minus;
+
+        const hwScA = DBService.getHwScore(activeClass, a);
+        const hwScB = DBService.getHwScore(activeClass, b);
+        const hwNetA = hwScA.plus - hwScA.minus;
+        const hwNetB = hwScB.plus - hwScB.minus;
+
+        const tScA = DBService.getTestScore(activeClass, a);
+        const tScB = DBService.getTestScore(activeClass, b);
+
+        const totalA = dNetA + hwNetA + tScA;
+        const totalB = dNetB + hwNetB + tScB;
+
+        if (sortType === 'total-desc') return totalB - totalA;
+        if (sortType === 'test-desc') return tScB - tScA;
+        if (sortType === 'dersici-desc') return dNetB - dNetA;
+        if (sortType === 'odev-desc') return hwNetB - hwNetA;
+        if (sortType === 'least-participated') return totalA - totalB;
+        return a.localeCompare(b, 'tr');
+      });
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="p-8 text-center text-slate-500 font-semibold text-xs"><i class="fa-solid fa-magnifying-glass mr-2"></i>Aradığınız kriterde öğrenci bulunamadı.</td></tr>`;
+        return;
+      }
+
+      list.forEach((name, index) => {
+        const dSc = DBService.getScore(activeClass, name);
+        const dNet = dSc.plus - dSc.minus;
+        let dBadgeClass = dNet > 0 ? 'badge-pos' : (dNet < 0 ? 'badge-neg' : 'badge-zero');
+
+        const hwSc = DBService.getHwScore(activeClass, name);
+        const hwNet = hwSc.plus - hwSc.minus;
+        let hwBadgeClass = hwNet > 0 ? 'badge-pos' : (hwNet < 0 ? 'badge-neg' : 'badge-zero');
+
+        const tSc = DBService.getTestScore(activeClass, name);
+        const tTokens = DBService.getTestTokens(activeClass, name);
+        const stars = tTokens.filter(t => t === '+3' || t === 3 || String(t).includes('3')).length;
+        let tBadgeClass = tSc > 0 ? 'bg-purple-950/80 text-purple-300 border border-purple-500/30' : (tSc < 0 ? 'badge-neg' : 'badge-zero');
+
+        let starBadge = '';
+        if (stars > 0) {
+          starBadge = `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-950/70 border border-amber-500/40 text-amber-300 text-[10px] font-bold font-mono ml-1.5" title="${stars} Yıldız">
+            <i class="fa-solid fa-star text-amber-400 text-[9px]"></i>${stars > 1 ? stars : ''}
+          </span>`;
+        }
+
+        const totalNet = dNet + hwNet + tSc;
+        let totalBadgeClass = totalNet > 0 ? 'bg-indigo-950/80 text-indigo-300 border border-indigo-500/40' : (totalNet < 0 ? 'badge-neg' : 'badge-zero');
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-900/80 transition";
+        tr.innerHTML = `
+          <td class="p-3.5 text-center text-slate-500 font-mono bg-slate-950/60">${index + 1}</td>
+          <td class="p-3.5 font-bold text-slate-100 text-sm whitespace-nowrap flex items-center bg-slate-950/60">
+            <span>${name}</span>
+            ${starBadge}
+          </td>
+          
+          <!-- Ders İçi Alanı (Zümrüt Yeşili Arka Plan) -->
+          <td class="p-3.5 text-center bg-emerald-950/15 border-l border-slate-800/80">
+            <span class="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-emerald-950/60 text-emerald-400 border border-emerald-500/30">
+              ${dSc.plus}
+            </span>
+          </td>
+          <td class="p-3.5 text-center bg-emerald-950/15">
+            <span class="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-rose-950/60 text-rose-400 border border-rose-500/30">
+              ${dSc.minus}
+            </span>
+          </td>
+          <td class="p-3.5 text-center bg-emerald-950/25 border-r border-slate-800/80">
+            <span class="px-2 py-0.5 rounded-lg text-xs font-bold font-mono ${dBadgeClass}">
+              ${dNet > 0 ? '+' + dNet : dNet}
+            </span>
+          </td>
+
+          <!-- Ödev Alanı (Kehribar/Amber Arka Plan) -->
+          <td class="p-3.5 text-center bg-amber-950/15">
+            <span class="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-emerald-950/60 text-emerald-400 border border-emerald-500/30">
+              ${hwSc.plus}
+            </span>
+          </td>
+          <td class="p-3.5 text-center bg-amber-950/15">
+            <span class="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-rose-950/60 text-rose-400 border border-rose-500/30">
+              ${hwSc.minus}
+            </span>
+          </td>
+          <td class="p-3.5 text-center bg-amber-950/25 border-r border-slate-800/80">
+            <span class="px-2 py-0.5 rounded-lg text-xs font-bold font-mono ${hwBadgeClass}">
+              ${hwNet > 0 ? '+' + hwNet : hwNet}
+            </span>
+          </td>
+
+          <!-- Test Alanı (Mor/Lila Arka Plan) -->
+          <td class="p-3.5 text-center bg-purple-950/25 border-r border-slate-800/80">
+            <div class="inline-flex items-center justify-center gap-1">
+              <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold font-mono ${tBadgeClass}">
+                ${tSc > 0 ? '+' + tSc : tSc}
+              </span>
+            </div>
+          </td>
+
+          <!-- Toplam Net Alanı (İndigo Arka Plan) -->
+          <td class="p-3.5 text-center bg-indigo-950/35">
+            <span class="px-3 py-1 rounded-xl text-xs font-black font-mono ${totalBadgeClass}">
+              ${totalNet > 0 ? '+' + totalNet : totalNet}
+            </span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ==================== CSV / JSON BACKUP ====================
+    function exportCurrentPageCSV() {
+      let type = 'dersici';
+      if (activePage === 'odev') type = 'odev';
+      if (activePage === 'test') type = 'test';
+      if (activePage === 'geneldurum') type = 'geneldurum';
+      exportScoresToCSV(type);
+    }
+
+    function exportScoresToCSV(type = 'dersici') {
+      const cur = DBService.getClass(activeClass);
+      
+      if (type === 'geneldurum') {
+        let csv = "\uFEFFSıra,Öğrenci Adı,Ders İçi (+),Ders İçi (-),Ders İçi Net,Ödev (+),Ödev (-),Ödev Net,Test Puanı,Genel Toplam Net\n";
+        cur.full.forEach((name, i) => {
+          const dSc = DBService.getScore(activeClass, name);
+          const dNet = dSc.plus - dSc.minus;
+
+          const hwSc = DBService.getHwScore(activeClass, name);
+          const hwNet = hwSc.plus - hwSc.minus;
+
+          const tSc = DBService.getTestScore(activeClass, name);
+          const totalNet = dNet + hwNet + tSc;
+          csv += `"${i + 1}","${name}","${dSc.plus}","${dSc.minus}","${dNet}","${hwSc.plus}","${hwSc.minus}","${hwNet}","${tSc}","${totalNet}"\n`;
+        });
+        downloadFile(csv, `${activeClass}_sinif_genel_performans_karne.csv`, 'text/csv;charset=utf-8;');
+        return;
+      }
+
+      if (type === 'test') {
+        let csv = `\uFEFFSıra,Öğrenci Adı,Alınan Test Puanları,Toplam Test Puanı\n`;
+        cur.full.forEach((name, i) => {
+          const score = DBService.getTestScore(activeClass, name);
+          const tokens = DBService.getTestTokens(activeClass, name).join(" ");
+          csv += `"${i + 1}","${name}","${tokens}","${score}"\n`;
+        });
+        downloadFile(csv, `${activeClass}_sinif_test_performans.csv`, 'text/csv;charset=utf-8;');
+        return;
+      }
+
+      const isOdev = type === 'odev';
+      let csv = `\uFEFFSıra,Öğrenci Adı,${isOdev ? 'Ödev Simgeleri' : 'Ders İçi Simgeleri'},Net Puan\n`;
+      
+      cur.full.forEach((name, i) => {
+        const sc = isOdev ? DBService.getHwScore(activeClass, name) : DBService.getScore(activeClass, name);
+        const tokens = (isOdev ? DBService.getHwTokens(activeClass, name) : DBService.getTokens(activeClass, name)).join(" ");
+        csv += `"${i + 1}","${name}","${tokens}","${sc.plus - sc.minus}"\n`;
+      });
+      
+      downloadFile(csv, `${activeClass}_sinif_${isOdev ? 'odev' : 'dersici'}_performans.csv`, 'text/csv;charset=utf-8;');
+    }
+
+    function exportDatabaseJSON() {
+      const jsonStr = JSON.stringify(DBService.data, null, 2);
+      downloadFile(jsonStr, `ogrenci_veritabani_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+      document.getElementById('dbMenu').classList.add('hidden');
+    }
+
+    function importDatabaseJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          if (parsed && parsed.classes) {
+            DBService.restoreBackup(parsed);
+          } else {
+            alert("Geçersiz yedek dosyası.");
+          }
+        } catch (err) {
+          alert("Dosya okunamadı: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+      document.getElementById('dbMenu').classList.add('hidden');
+    }
+
+    function downloadFile(content, fileName, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function toggleDbMenu() { document.getElementById('dbMenu').classList.toggle('hidden'); }
+    document.addEventListener('click', (e) => {
+      const wrap = document.getElementById('dbDropdownWrap');
+      if (wrap && !wrap.contains(e.target)) document.getElementById('dbMenu').classList.add('hidden');
+    });
+
+    // Modal Edit Class List
+    function openEditModal() {
+      document.getElementById('modalTitle').textContent = `${activeClass}. Sınıf`;
+      document.getElementById('modalTextarea').value = DBService.getClass(activeClass).full.join('\n');
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+    function closeEditModal() { document.getElementById('editModal').classList.add('hidden'); }
+    function restoreClassDefault() {
+      if (confirm(`${activeClass}. Sınıf için orijinal isim listesini geri yüklemek istiyor musunuz?`)) {
+        const defaultNames = {
+          "6": ["ATINÇ RÜZGAR KONUKMAN", "AYAZ BİLGİN", "AYAZ EMİR SELÇUK", "ASYA ÇAKAR", "BERAY KESKİN", "BEREN UÇAR", "BULUT KURT", "CEYLİN ÜLKEBAY", "ÇINAR YAVER", "DENİZ GÜLER", "ALİSA ÜŞÜDÜR", "DEREN ÇOLAK", "DERİN BERRAK ERKOÇ", "DERİN DEMİR", "DOĞA İPEKLİ", "DURU AYVAZ", "EGE POYRAZ ÇELİK", "EMİR TOPAKKAYA", "ÖYKÜ CEYLİN ÇİRKİN", "HAZEL MİRA ÇİÇEK", "MUSTAFA ÇINAR EROL", "DERİN NAZ KARA", "ÖYKÜ TUTKAÇ", "İSMAİL BÜYÜKGENÇ", "ECEM HİLAL", "SEDANUR ÖZSOY", "TANER TURNA", "UMUT EFE KARAAĞAÇ", "YİĞİT KARTAL", "ZEYNEP İPEK BEKTAŞ", "HALİL TİMUR YILDIRIM", "MERAL KARTAL"],
+          "7": ["ALİ BERKER KESKİN", "ALİ GALİP CAN ARICILAR", "AYAZ ÖZDEK", "YİĞİT TOPAL", "AYTUĞ AKBULUT", "BEYZA NEHİR ÇAN", "TUANA ÇINAR", "DURU YAŞAYANCAN", "TUNA COMERT", "EYLÜL KILIÇARSLAN", "EGE UZUNHANÇERLİ", "GÖKAY KIZILVERAN", "GÖKHAN ERDEM", "GÖKSU PEHLİVAN", "DERİN SUNGUR", "HATİCE TOPRAK ÖZER", "ENES BAL", "KARDELEN ÇAĞLAR", "KAYRA SERKEK", "MEDİNE ECE AĞLAR", "MELİKE ŞEYMA BAY", "EREN BALCI", "MENEKŞE ADA AYAZ", "YAĞMUR BARIN", "NİLDA ÇİFÇİ", "SUDENAZ UYSAL", "TOPRAK ANIL KOLAÇ", "TOPRAK BOZTEPE"],
+          "8": ["MURAT İNCE", "ASYA NAZ KARAGÖZ", "EYLÜL KAZANCI", "EYLÜL YALÇINKAYA", "EYNUR BERRU PEHLİVAN", "GÜNEŞ DEMİRÖRS", "ARMİN DALGIÇ", "ŞEBNEM BURÇE ÇILDIR", "ÇAĞAN MERT ŞAHİNBAŞ", "ÇAĞAN TOPRAK KIZILIRMAK", "ÇINAR COMERT", "AYHAN YAĞIZ YILDIRIM", "ÇINAR TERCANLI", "DEMİR ÇAĞAN BELLEK", "DERİN UMAY POLAT", "GÜNEŞ SU ERAY", "İLKİM NAZ AŞKIN", "KAĞAN DİKENLİ", "KEREM TÜRKOĞLU", "MUHAMMET ALİ ERGÜN", "MUSTAFA YİĞİT AKÇAKAYA", "ALİ GAZİ ÖZDEMİR", "ÖYKÜ ÖZCAN", "MASAL İPEK", "RÜZGAR YİĞİT", "YAĞMUR YİĞİT", "YİĞİT TERCANLI", "ELA DENİZ ÇALIŞIR", "CAN GÖKGÖZ"]
+        };
+        document.getElementById('modalTextarea').value = (defaultNames[activeClass] || []).join('\n');
+      }
+    }
+    function saveCustomList() {
+      const lines = document.getElementById('modalTextarea').value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length === 0) { alert("Lütfen en az bir öğrenci ismi girin!"); return; }
+      DBService.updateStudentList(activeClass, lines);
+      closeEditModal();
+    }
+
+    function exportResults() {
+      const cur = DBService.getClass(activeClass);
+      if (cur.history.length === 0) { alert("Kopyalanacak sonuç bulunmuyor."); return; }
+      const text = `${activeClass}. SINIF KURA SIRASI:\n` + cur.history.map((item, i) => `${i + 1}. ${item.name} (${item.time})`).join('\n');
+      navigator.clipboard.writeText(text).then(() => alert("Kura sırası kopyalandı."));
+    }
+
+    // Launch with SQLite API
+    DBService.init(() => {
+      switchClass("7");
+      switchPage("kura");
+    });
+  </script>
+</body>
+</html>

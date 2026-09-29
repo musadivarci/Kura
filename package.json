@@ -1,0 +1,12 @@
+{
+  "name": "kura-performans-sistemi",
+  "version": "1.0.0",
+  "description": "Kura & Öğrenci Performans Sistemi — SQLite Veritabanlı",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["kura", "ogrenci", "performans", "sqlite"],
+  "author": "Musa DİVARCI",
+  "license": "ISC"
+}
