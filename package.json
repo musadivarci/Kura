@@ -6,7 +6,15 @@
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": ["kura", "ogrenci", "performans", "sqlite"],
+  "keywords": [
+    "kura",
+    "ogrenci",
+    "performans",
+    "sqlite"
+  ],
   "author": "Musa DİVARCI",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@libsql/client": "^0.18.0"
+  }
 }
