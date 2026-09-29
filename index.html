@@ -876,21 +876,12 @@
           </div>
 
           <p class="text-[11px] text-slate-400">
-            E-posta kutunuzu kontrol edin. Bağlantıya tıkladığınızda oturumunuz <b>otomatik açılacaktır</b>.
+            <b>musadivarci19@gmail.com</b> gelen kutunuzu (ve gerekiyorsa spam klasörünü) kontrol edin. E-postadaki butona tıkladığınızda bu ekranda oturumunuz <b>otomatik açılacaktır</b>.
           </p>
         </div>
 
-        <!-- Dev Link / Direct Open (Fallback button) -->
-        <div id="authDevLinkBox" class="hidden space-y-2">
-          <p class="text-[11px] font-semibold text-slate-400 text-center">Gelen bağlantıyı hemen açmak için:</p>
-          <a id="authDevLinkBtn" href="#" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-2">
-            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-            <span>Oturumu Doğrudan Aç (Tek Tıkla)</span>
-          </a>
-        </div>
-
-        <button onclick="AuthService.resetForm()" class="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition">
-          Yeni Bağlantı İste
+        <button onclick="AuthService.resetForm()" class="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition">
+          <i class="fa-solid fa-rotate-left mr-1"></i> Yeni Bağlantı İste
         </button>
       </div>
 
@@ -1126,7 +1117,7 @@
           const json = await res.json();
 
           if (json.success) {
-            this.showSentState(json.expiresIn || 60, json.devLink);
+            this.showSentState(json.expiresIn || 60);
           } else {
             this.showError(json.error || "Giriş linki gönderilemedi.");
             btn.disabled = false;
@@ -1139,20 +1130,11 @@
         }
       },
 
-      showSentState(seconds = 60, devLink = null) {
+      showSentState(seconds = 60) {
         document.getElementById('authFormState').classList.add('hidden');
         document.getElementById('authVerifyingState').classList.add('hidden');
         document.getElementById('authSentState').classList.remove('hidden');
         this.hideAlert();
-
-        if (devLink) {
-          const box = document.getElementById('authDevLinkBox');
-          const btn = document.getElementById('authDevLinkBtn');
-          box.classList.remove('hidden');
-          btn.href = devLink;
-        } else {
-          document.getElementById('authDevLinkBox').classList.add('hidden');
-        }
 
         this.remainingSeconds = seconds;
         const timerDisplay = document.getElementById('authTimerDisplay');

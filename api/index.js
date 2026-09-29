@@ -313,7 +313,6 @@ module.exports = async (req, res) => {
       return sendJSON(res, {
         success: true,
         message: `Giriş bağlantısı ${email} adresine gönderildi (60 saniye geçerli).`,
-        devLink: mailResult.devLink || magicLinkUrl,
         expiresIn: auth.LINK_EXPIRY_SECONDS
       });
     }
