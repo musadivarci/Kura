@@ -217,118 +217,123 @@
 </head>
 <body class="p-3 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-5">
 
-  <!-- Header with MD Logo & 5-Tab Main Navigation -->
-  <header class="dark-card rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+  <!-- Header: Scandinavian Minimalist Design (İsveç Tarzı) -->
+  <header class="dark-card rounded-2xl p-4 sm:p-5 space-y-4 border border-slate-800/80 shadow-xl bg-slate-900/90 backdrop-blur-md">
     
-    <!-- Logo & Brand -->
-    <div class="flex items-center space-x-3.5">
-      <div class="h-11 w-11 rounded-xl bg-black border border-slate-800 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
-        <img src="./logo.png" alt="MD Logo" class="h-full w-full object-contain" onerror="this.outerHTML='<span class=\'font-black font-mono text-white text-base\'>MD</span>'">
-      </div>
-      <div>
-        <div class="flex items-center gap-2">
-          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white">
-            Öğrenci Performans Sistemi
-          </h1>
-          <span class="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
-            MD
-          </span>
+    <!-- Top Row: Brand & System Utilities -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      
+      <!-- Brand & Teacher Info -->
+      <div class="flex items-center space-x-3.5">
+        <div class="h-11 w-11 rounded-xl bg-gradient-to-br from-slate-900 to-black border border-slate-700/80 p-1 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
+          <img src="./logo.png" alt="MD Logo" class="h-full w-full object-contain" onerror="this.outerHTML='<span class=\'font-black font-mono text-white text-base tracking-tighter\'>MD</span>'">
         </div>
-        <p class="text-xs text-slate-400 font-medium">Musa DİVARCI</p>
-      </div>
-    </div>
-
-    <!-- MAIN MENU: Kura — Ders İçi — Ödev — Test — Genel Durum -->
-    <div class="flex items-center bg-slate-900/90 p-1.5 rounded-xl border border-slate-800 overflow-x-auto gap-1">
-      <button id="navBtn-kura" onclick="switchPage('kura')" class="px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-indigo-600 text-white shadow-sm shrink-0">
-        <i class="fa-solid fa-dice mr-1 text-amber-300"></i> Kura
-      </button>
-
-      <button id="navBtn-dersici" onclick="switchPage('dersici')" class="px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white shrink-0">
-        <i class="fa-solid fa-chalkboard-user mr-1 text-slate-400"></i> Ders İçi
-      </button>
-
-      <button id="navBtn-odev" onclick="switchPage('odev')" class="px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white shrink-0">
-        <i class="fa-solid fa-book-bookmark mr-1 text-amber-400"></i> Ödev
-      </button>
-
-      <button id="navBtn-test" onclick="switchPage('test')" class="px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white shrink-0">
-        <i class="fa-solid fa-file-lines mr-1 text-purple-400"></i> Test
-      </button>
-
-      <button id="navBtn-geneldurum" onclick="switchPage('geneldurum')" class="px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white shrink-0">
-        <i class="fa-solid fa-table-list mr-1 text-cyan-400"></i> Genel Durum
-      </button>
-    </div>
-
-    <!-- Actions & Settings -->
-    <div class="flex items-center gap-2 shrink-0">
-      <!-- SQLite Database Status Pill -->
-      <div id="dbStatusBadge" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 shadow-sm" title="SQLite Veritabanı — Sıfır Veri Kaybı Aktif">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span class="hidden sm:inline">SQLite Aktif</span>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white font-sans">
+              Öğrenci Performans Sistemi
+            </h1>
+            <span class="px-2 py-0.5 rounded-md bg-indigo-950/70 border border-indigo-500/30 text-indigo-300 text-[10px] font-bold uppercase tracking-wider">
+              MD
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 font-medium tracking-wide">Musa DİVARCI</p>
+        </div>
       </div>
 
-      <button onclick="exportCurrentPageCSV()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
-        <i class="fa-solid fa-file-excel text-emerald-400"></i>
-        <span class="hidden md:inline">Excel İndir</span>
-      </button>
+      <!-- Right Action Toolbar: SQLite Status + Excel + Ayarlar + Logout -->
+      <div class="flex items-center gap-2 self-end sm:self-auto shrink-0">
+        <!-- SQLite Database Status Pill -->
+        <div id="dbStatusBadge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/25 text-[11px] font-semibold text-emerald-400 shadow-sm" title="SQLite Veritabanı — Sıfır Veri Kaybı Aktif">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="hidden sm:inline">SQLite Aktif</span>
+        </div>
 
-      <div class="relative inline-block" id="dbDropdownWrap">
-        <button onclick="toggleDbMenu()" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
-          <i class="fa-solid fa-sliders text-slate-400"></i> Ayarlar <i class="fa-solid fa-chevron-down text-[9px] text-slate-500 ml-0.5"></i>
+        <button onclick="exportCurrentPageCSV()" class="px-3.5 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700/70 rounded-xl text-xs font-semibold transition flex items-center gap-2 shadow-sm hover:text-white">
+          <i class="fa-solid fa-file-excel text-emerald-400"></i>
+          <span class="hidden md:inline">Excel İndir</span>
         </button>
-        <div id="dbMenu" class="hidden absolute right-0 mt-2 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-1.5 z-50 text-xs text-slate-300">
-          <button onclick="openEditModal()" class="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2">
-            <i class="fa-solid fa-pen-to-square text-indigo-400"></i> Sınıf Listesini Düzenle
+
+        <div class="relative inline-block" id="dbDropdownWrap">
+          <button onclick="toggleDbMenu()" class="px-3.5 py-1.5 bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700/70 rounded-xl text-xs font-semibold transition flex items-center gap-2 shadow-sm hover:text-white">
+            <i class="fa-solid fa-sliders text-slate-400"></i> Ayarlar <i class="fa-solid fa-chevron-down text-[9px] text-slate-400 ml-0.5"></i>
           </button>
-          <button onclick="exportDatabaseJSON()" class="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2">
-            <i class="fa-solid fa-download text-emerald-400"></i> JSON Yedek İndir
-          </button>
-          <label class="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2 cursor-pointer">
-            <i class="fa-solid fa-upload text-indigo-400"></i> JSON Yedek Yükle
-            <input type="file" id="dbFileInput" accept=".json" onchange="importDatabaseJSON(event)" class="hidden">
-          </label>
-          <hr class="border-slate-800 my-1">
-          <button onclick="resetCurrentClassScores()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2">
-            <i class="fa-solid fa-eraser"></i> Ders İçi Puanlarını Sıfırla
-          </button>
-          <button onclick="resetCurrentClassHwScores()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2">
-            <i class="fa-solid fa-eraser"></i> Ödev Puanlarını Sıfırla
-          </button>
-          <button onclick="resetCurrentClassTestScores()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2">
-            <i class="fa-solid fa-eraser"></i> Test Puanlarını Sıfırla
-          </button>
-          <button onclick="resetClassDrawPool()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2">
-            <i class="fa-solid fa-rotate-left"></i> Kura Havuzunu Sıfırla
-          </button>
-          <hr class="border-slate-800 my-1">
-          <button onclick="AuthService.logout()" class="w-full text-left px-4 py-2 hover:bg-rose-950/60 text-rose-400 font-bold flex items-center gap-2">
-            <i class="fa-solid fa-power-off"></i> Oturumu Kapat
-          </button>
+          <div id="dbMenu" class="hidden absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl py-2 z-50 text-xs text-slate-300 backdrop-blur-md">
+            <button onclick="openEditModal()" class="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2.5 transition">
+              <i class="fa-solid fa-pen-to-square text-indigo-400 w-4"></i> Sınıf Listesini Düzenle
+            </button>
+            <button onclick="exportDatabaseJSON()" class="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2.5 transition">
+              <i class="fa-solid fa-download text-emerald-400 w-4"></i> JSON Yedek İndir
+            </button>
+            <label class="w-full text-left px-4 py-2 hover:bg-slate-800 flex items-center gap-2.5 cursor-pointer transition">
+              <i class="fa-solid fa-upload text-indigo-400 w-4"></i> JSON Yedek Yükle
+              <input type="file" id="dbFileInput" accept=".json" onchange="importDatabaseJSON(event)" class="hidden">
+            </label>
+            <hr class="border-slate-800 my-1.5">
+            <button onclick="resetCurrentClassScores()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2.5 transition">
+              <i class="fa-solid fa-eraser w-4"></i> Ders İçi Puanlarını Sıfırla
+            </button>
+            <button onclick="resetCurrentClassHwScores()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2.5 transition">
+              <i class="fa-solid fa-eraser w-4"></i> Ödev Puanlarını Sıfırla
+            </button>
+            <button onclick="resetCurrentClassTestScores()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2.5 transition">
+              <i class="fa-solid fa-eraser w-4"></i> Test Puanlarını Sıfırla
+            </button>
+            <button onclick="resetClassDrawPool()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2.5 transition">
+              <i class="fa-solid fa-rotate-left w-4"></i> Kura Havuzunu Sıfırla
+            </button>
+            <hr class="border-slate-800 my-1.5">
+            <button onclick="AuthService.logout()" class="w-full text-left px-4 py-2 hover:bg-rose-950/60 text-rose-400 font-bold flex items-center gap-2.5 transition">
+              <i class="fa-solid fa-power-off w-4"></i> Oturumu Kapat
+            </button>
+          </div>
         </div>
+
+        <!-- Minimal Nordic Logout Button -->
+        <button id="headerLogoutBtn" onclick="AuthService.logout()" class="hidden sm:inline-flex items-center justify-center w-8 h-8 rounded-xl bg-slate-800/80 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 border border-slate-700/70 hover:border-rose-500/40 text-xs transition shadow-sm shrink-0" title="Oturumu Kapat">
+          <i class="fa-solid fa-power-off text-[11px]"></i>
+        </button>
       </div>
 
-      <!-- Compact Mini Logout Icon Button -->
-      <button id="headerLogoutBtn" onclick="AuthService.logout()" class="hidden sm:inline-flex items-center justify-center w-8 h-8 rounded-xl bg-slate-900 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-500/30 text-xs transition shadow-sm shrink-0" title="Oturumu Kapat">
-        <i class="fa-solid fa-power-off text-[11px]"></i>
-      </button>
     </div>
+
+    <!-- Bottom Row: Nordic Segmented Navigation (5 Main Modules) -->
+    <nav class="flex items-center bg-slate-950/70 p-1.5 rounded-xl border border-slate-800/80 gap-1.5 w-full">
+      <button id="navBtn-kura" onclick="switchPage('kura')" class="flex-1 py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-bold transition-all bg-indigo-600 text-white shadow-sm flex items-center justify-center gap-2 border border-indigo-400/30">
+        <i class="fa-solid fa-dice text-amber-300"></i> <span>Kura</span>
+      </button>
+
+      <button id="navBtn-dersici" onclick="switchPage('dersici')" class="flex-1 py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-chalkboard-user text-emerald-400"></i> <span>Ders İçi</span>
+      </button>
+
+      <button id="navBtn-odev" onclick="switchPage('odev')" class="flex-1 py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-book-bookmark text-amber-400"></i> <span>Ödev</span>
+      </button>
+
+      <button id="navBtn-test" onclick="switchPage('test')" class="flex-1 py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-file-lines text-purple-400"></i> <span>Test</span>
+      </button>
+
+      <button id="navBtn-geneldurum" onclick="switchPage('geneldurum')" class="flex-1 py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-table-list text-cyan-400"></i> <span>Genel Durum</span>
+      </button>
+    </nav>
   </header>
 
-  <!-- Class Tabs (6, 7, 8) -->
-  <div class="flex items-center gap-2.5 overflow-x-auto pb-1">
-    <button id="tab-6" onclick="switchClass('6')" class="flex-1 min-w-[130px] py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 border">
+  <!-- Class Tabs (6, 7, 8) - Nordic Minimalist Grid -->
+  <div class="grid grid-cols-3 gap-2.5">
+    <button id="tab-6" onclick="switchClass('6')" class="py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 border">
       <span>6. Sınıf</span>
       <span id="badge-6" class="text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono">32</span>
     </button>
 
-    <button id="tab-7" onclick="switchClass('7')" class="flex-1 min-w-[130px] py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 border">
+    <button id="tab-7" onclick="switchClass('7')" class="py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 border">
       <span>7. Sınıf</span>
       <span id="badge-7" class="text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono">28</span>
     </button>
 
-    <button id="tab-8" onclick="switchClass('8')" class="flex-1 min-w-[130px] py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 border">
+    <button id="tab-8" onclick="switchClass('8')" class="py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 border">
       <span>8. Sınıf</span>
       <span id="badge-8" class="text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono">29</span>
     </button>
@@ -1692,17 +1697,14 @@
       pages.forEach(p => {
         const el = document.getElementById(`page-${p}`);
         const btn = document.getElementById(`navBtn-${p}`);
+        if (!el || !btn) return;
         
         if (p === pageKey) {
           el.classList.remove('hidden');
-          if (p === 'kura') btn.className = "px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-indigo-600 text-white shadow-sm shrink-0";
-          else if (p === 'dersici') btn.className = "px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-indigo-600 text-white shadow-sm shrink-0";
-          else if (p === 'odev') btn.className = "px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-amber-600 text-white shadow-sm shrink-0";
-          else if (p === 'test') btn.className = "px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-purple-600 text-white shadow-sm shrink-0";
-          else if (p === 'geneldurum') btn.className = "px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-cyan-600 text-white shadow-sm shrink-0";
+          btn.className = "flex-1 py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-bold transition-all bg-indigo-600 text-white shadow-sm flex items-center justify-center gap-2 border border-indigo-400/30";
         } else {
           el.classList.add('hidden');
-          btn.className = "px-3.5 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white shrink-0";
+          btn.className = "flex-1 py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 flex items-center justify-center gap-2";
         }
       });
 
@@ -1749,11 +1751,11 @@
         badge.textContent = `${cls.remaining.length}/${cls.full.length}`;
 
         if (k === activeClass) {
-          tab.className = "flex-1 min-w-[130px] py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 bg-slate-800 text-white border-indigo-500/60 shadow-sm";
+          tab.className = "py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 bg-slate-800/90 text-white border-indigo-500/60 shadow-sm";
           badge.className = "text-[11px] px-2 py-0.5 rounded-md bg-indigo-600 text-white font-mono";
         } else {
-          tab.className = "flex-1 min-w-[130px] py-2.5 px-4 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center justify-between gap-2 bg-slate-900/80 text-slate-400 border-slate-800 hover:border-slate-700";
-          badge.className = "text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-mono";
+          tab.className = "py-2.5 px-4 rounded-xl font-medium text-xs sm:text-sm transition-all flex items-center justify-between gap-2 bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-300";
+          badge.className = "text-[11px] px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 font-mono";
         }
       });
 
