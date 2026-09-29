@@ -7,6 +7,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { DatabaseSync } = require('node:sqlite');
+const auth = require('./auth');
 
 const PORT = process.env.PORT || 3000;
 const DB_PATH = path.join(__dirname, 'kura.db');
@@ -239,29 +240,117 @@ function parseBody(req) {
   });
 }
 
-function sendJSON(res, data, status = 200) {
+function getCookie(req, name) {
+  const cookieHeader = req.headers.cookie || '';
+  const match = cookieHeader.match(new RegExp('(^|;\\s*)' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+function sendJSON(res, data, status = 200, extraHeaders = {}) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': reqOrigin || '*',
+    'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    ...extraHeaders
   });
   res.end(JSON.stringify(data));
 }
 
+let reqOrigin = '*';
+
 const server = http.createServer(async (req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
   const pathname = parsedUrl.pathname;
+  reqOrigin = req.headers.origin || '*';
 
   // CORS Preflight
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': reqOrigin,
+      'Access-Control-Allow-Credentials': 'true',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
     });
     res.end();
     return;
+  }
+
+  // --- AUTH ENDPOINTS ---
+  // 1. Giriş Linki İste (60 saniye ömürlü)
+  if (pathname === '/api/auth/send-link' && req.method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      const email = (body.email || auth.ALLOWED_EMAIL).trim().toLowerCase();
+
+      if (email !== auth.ALLOWED_EMAIL) {
+        return sendJSON(res, { success: false, error: `Sadece ${auth.ALLOWED_EMAIL} adresi ile giriş yapılabilir.` }, 403);
+      }
+
+      const { token } = auth.generateMagicToken(email);
+      const host = req.headers.host;
+      const protocol = req.headers['x-forwarded-proto'] || 'http';
+      const magicLinkUrl = `${protocol}://${host}/?token=${token}`;
+
+      const mailResult = await auth.sendMagicLinkEmail(email, magicLinkUrl);
+
+      return sendJSON(res, {
+        success: true,
+        message: `Giriş bağlantısı ${email} adresine gönderildi (60 saniye geçerli).`,
+        devLink: mailResult.devLink || magicLinkUrl,
+        expiresIn: auth.LINK_EXPIRY_SECONDS
+      });
+    } catch (e) {
+      return sendJSON(res, { success: false, error: e.message }, 500);
+    }
+  }
+
+  // 2. Token Doğrula (Tek tıkla oturum açma)
+  if ((pathname === '/api/auth/verify') && (req.method === 'GET' || req.method === 'POST')) {
+    try {
+      let token = parsedUrl.searchParams.get('token');
+      if (!token && req.method === 'POST') {
+        const b = await parseBody(req);
+        token = b.token;
+      }
+
+      const result = auth.verifyMagicToken(token);
+      if (!result.valid) {
+        return sendJSON(res, { success: false, error: result.error }, 400);
+      }
+
+      // Cookie ayarla (30 gün)
+      const cookieVal = `auth_session=${result.sessionToken}; Path=/; Max-Age=2592000; SameSite=Lax; HttpOnly`;
+      return sendJSON(res, {
+        success: true,
+        user: { email: result.email },
+        sessionToken: result.sessionToken
+      }, 200, { 'Set-Cookie': cookieVal });
+    } catch (e) {
+      return sendJSON(res, { success: false, error: e.message }, 500);
+    }
+  }
+
+  // 3. Mevcut Oturumu Kontrol Et
+  if (pathname === '/api/auth/me' && req.method === 'GET') {
+    const authHeader = req.headers.authorization;
+    let sessionToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    if (!sessionToken) {
+      sessionToken = getCookie(req, 'auth_session');
+    }
+
+    const session = auth.verifySession(sessionToken);
+    if (!session) {
+      return sendJSON(res, { authenticated: false });
+    }
+    return sendJSON(res, { authenticated: true, user: { email: session.email } });
+  }
+
+  // 4. Çıkış Yap
+  if (pathname === '/api/auth/logout' && req.method === 'POST') {
+    const clearCookie = `auth_session=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly`;
+    return sendJSON(res, { success: true }, 200, { 'Set-Cookie': clearCookie });
   }
 
   // --- API ENDPOINTS ---

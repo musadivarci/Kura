@@ -6,6 +6,7 @@
 const { createClient } = require('@libsql/client');
 const path = require('path');
 const os = require('os');
+const auth = require('../auth');
 
 const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME;
 const defaultLocalPath = isVercel ? path.join(os.tmpdir(), 'kura.db') : path.join(process.cwd(), 'kura.db');
@@ -256,11 +257,21 @@ function parseBody(req) {
   });
 }
 
-function sendJSON(res, data, status = 200) {
+function getCookie(req, name) {
+  const cookieHeader = req.headers.cookie || '';
+  const match = cookieHeader.match(new RegExp('(^|;\\s*)' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+function sendJSON(res, data, status = 200, extraHeaders = {}) {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  Object.keys(extraHeaders).forEach(k => {
+    res.setHeader(k, extraHeaders[k]);
+  });
   res.statusCode = status;
   res.end(JSON.stringify(data));
 }
@@ -270,8 +281,9 @@ module.exports = async (req, res) => {
   // CORS Preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.statusCode = 204;
     res.end();
     return;
@@ -281,6 +293,77 @@ module.exports = async (req, res) => {
   const pathname = url.split('?')[0];
 
   try {
+    // --- AUTH ENDPOINTS ---
+    // 1. POST /api/auth/send-link
+    if (pathname.endsWith('/auth/send-link') && req.method === 'POST') {
+      const body = await parseBody(req);
+      const email = (body.email || auth.ALLOWED_EMAIL).trim().toLowerCase();
+
+      if (email !== auth.ALLOWED_EMAIL) {
+        return sendJSON(res, { success: false, error: `Sadece ${auth.ALLOWED_EMAIL} adresi ile giriş yapılabilir.` }, 403);
+      }
+
+      const { token } = auth.generateMagicToken(email);
+      const host = req.headers.host;
+      const protocol = req.headers['x-forwarded-proto'] || 'https';
+      const magicLinkUrl = `${protocol}://${host}/?token=${token}`;
+
+      const mailResult = await auth.sendMagicLinkEmail(email, magicLinkUrl);
+
+      return sendJSON(res, {
+        success: true,
+        message: `Giriş bağlantısı ${email} adresine gönderildi (60 saniye geçerli).`,
+        devLink: mailResult.devLink || magicLinkUrl,
+        expiresIn: auth.LINK_EXPIRY_SECONDS
+      });
+    }
+
+    // 2. GET / POST /api/auth/verify
+    if (pathname.endsWith('/auth/verify') && (req.method === 'GET' || req.method === 'POST')) {
+      let token = null;
+      if (url.includes('?')) {
+        const queryParams = new URLSearchParams(url.split('?')[1]);
+        token = queryParams.get('token');
+      }
+      if (!token && req.method === 'POST') {
+        const b = await parseBody(req);
+        token = b.token;
+      }
+
+      const result = auth.verifyMagicToken(token);
+      if (!result.valid) {
+        return sendJSON(res, { success: false, error: result.error }, 400);
+      }
+
+      const cookieVal = `auth_session=${result.sessionToken}; Path=/; Max-Age=2592000; SameSite=Lax; HttpOnly`;
+      return sendJSON(res, {
+        success: true,
+        user: { email: result.email },
+        sessionToken: result.sessionToken
+      }, 200, { 'Set-Cookie': cookieVal });
+    }
+
+    // 3. GET /api/auth/me
+    if (pathname.endsWith('/auth/me') && req.method === 'GET') {
+      const authHeader = req.headers.authorization;
+      let sessionToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+      if (!sessionToken) {
+        sessionToken = getCookie(req, 'auth_session');
+      }
+
+      const session = auth.verifySession(sessionToken);
+      if (!session) {
+        return sendJSON(res, { authenticated: false });
+      }
+      return sendJSON(res, { authenticated: true, user: { email: session.email } });
+    }
+
+    // 4. POST /api/auth/logout
+    if (pathname.endsWith('/auth/logout') && req.method === 'POST') {
+      const clearCookie = `auth_session=; Path=/; Max-Age=0; SameSite=Lax; HttpOnly`;
+      return sendJSON(res, { success: true }, 200, { 'Set-Cookie': clearCookie });
+    }
+
     await ensureTablesAndSeed();
 
     // GET /api/data

@@ -7,3 +7,5 @@ Thumbs.db
 *.tmp
 kura.db-shm
 kura.db-wal
+
+.vercel

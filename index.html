@@ -263,6 +263,12 @@
 
     <!-- Actions & Settings -->
     <div class="flex items-center gap-2">
+      <!-- User Auth Pill -->
+      <div id="userBadge" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-950/70 border border-indigo-500/30 text-[11px] font-bold text-indigo-300 shadow-sm" title="Yetkili Kullanıcı">
+        <i class="fa-solid fa-user-check text-indigo-400"></i>
+        <span id="userEmailDisplay">musadivarci19@gmail.com</span>
+      </div>
+
       <!-- SQLite Database Status Pill -->
       <div id="dbStatusBadge" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 shadow-sm" title="SQLite Veritabanı — Sıfır Veri Kaybı Aktif">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -300,6 +306,10 @@
           </button>
           <button onclick="resetClassDrawPool()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2">
             <i class="fa-solid fa-rotate-left"></i> Kura Havuzunu Sıfırla
+          </button>
+          <hr class="border-slate-800 my-1">
+          <button onclick="AuthService.logout()" class="w-full text-left px-4 py-2 hover:bg-rose-950/40 text-amber-400 flex items-center gap-2">
+            <i class="fa-solid fa-right-from-bracket"></i> Oturumu Kapat
           </button>
         </div>
       </div>
@@ -813,6 +823,94 @@
     </div>
   </div>
 
+  <!-- ==================== AUTH & MAGIC LINK OVERLAY (60s Expiry) ==================== -->
+  <div id="authModalOverlay" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-[9999] transition-opacity duration-300">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6 relative overflow-hidden">
+      
+      <!-- Top Glow Accent -->
+      <div class="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-24 bg-indigo-500/20 rounded-full blur-2xl pointer-events-none"></div>
+
+      <!-- Header & Icon -->
+      <div class="text-center space-y-2">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 text-2xl mb-1 shadow-inner">
+          <i id="authIcon" class="fa-solid fa-lock"></i>
+        </div>
+        <h3 id="authTitle" class="text-xl font-extrabold text-white tracking-tight">Öğrenci Performans Sistemi</h3>
+        <p id="authSubtitle" class="text-xs text-slate-400 leading-relaxed">
+          Sisteme şifresiz ve güvenli erişmek için <b class="text-indigo-400">musadivarci19@gmail.com</b> adresinize 60 saniye geçerli bir giriş linki gönderilir.
+        </p>
+      </div>
+
+      <!-- Status Alert Box -->
+      <div id="authAlertBox" class="hidden p-3.5 rounded-xl text-xs font-medium border"></div>
+
+      <!-- State 1: Email Form -->
+      <div id="authFormState" class="space-y-4">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Yetkili E-Posta Adresi</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 text-sm">
+              <i class="fa-solid fa-envelope"></i>
+            </span>
+            <input type="email" id="authEmailInput" value="musadivarci19@gmail.com" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-3.5 text-xs sm:text-sm text-slate-200 font-semibold focus:outline-none focus:border-indigo-500/60 cursor-default" />
+          </div>
+        </div>
+
+        <button id="sendLinkBtn" onclick="AuthService.requestMagicLink()" class="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 group">
+          <i class="fa-solid fa-paper-plane group-hover:translate-x-0.5 transition-transform"></i>
+          <span>60 Saniyelik Giriş Bağlantısı Gönder</span>
+        </button>
+      </div>
+
+      <!-- State 2: Link Sent / Countdown -->
+      <div id="authSentState" class="hidden space-y-4">
+        <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center space-y-3">
+          <div class="flex items-center justify-center gap-2 text-amber-400 text-sm font-bold">
+            <i class="fa-solid fa-stopwatch animate-pulse"></i>
+            <span>Kalan Süre: <span id="authTimerDisplay" class="font-mono text-base">60</span>s</span>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div id="authTimerBar" class="bg-gradient-to-r from-indigo-500 to-amber-400 h-full rounded-full transition-all duration-1000 ease-linear" style="width: 100%;"></div>
+          </div>
+
+          <p class="text-[11px] text-slate-400">
+            E-posta kutunuzu kontrol edin. Bağlantıya tıkladığınızda oturumunuz <b>otomatik açılacaktır</b>.
+          </p>
+        </div>
+
+        <!-- Dev Link / Direct Open (Fallback button) -->
+        <div id="authDevLinkBox" class="hidden space-y-2">
+          <p class="text-[11px] font-semibold text-slate-400 text-center">Gelen bağlantıyı hemen açmak için:</p>
+          <a id="authDevLinkBtn" href="#" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            <span>Oturumu Doğrudan Aç (Tek Tıkla)</span>
+          </a>
+        </div>
+
+        <button onclick="AuthService.resetForm()" class="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition">
+          Yeni Bağlantı İste
+        </button>
+      </div>
+
+      <!-- State 3: Verifying Spinner -->
+      <div id="authVerifyingState" class="hidden py-6 text-center space-y-3">
+        <div class="inline-block w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-xs sm:text-sm font-bold text-white">Giriş bağlantısı doğrulanıyor, oturum açılıyor...</p>
+        <p class="text-[11px] text-slate-400">Lütfen bekleyin...</p>
+      </div>
+
+      <!-- Footer Note -->
+      <div class="text-center pt-2 border-t border-slate-800/80">
+        <span class="text-[10px] text-slate-500 font-medium">
+          🔒 Güvenli Şifresiz Kimlik Doğrulama — Musa DİVARCI
+        </span>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Audio Engine -->
   <script>
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -931,8 +1029,230 @@
     }
   </script>
 
-  <!-- ==================== CENTRAL DATABASE SERVICE (SQLite BACKEND) ==================== -->
+  <!-- ==================== AUTH SERVICE & CENTRAL DATABASE (SQLite BACKEND) ==================== -->
   <script>
+    const AuthService = {
+      user: null,
+      timerInterval: null,
+      remainingSeconds: 60,
+
+      getHeaders() {
+        const token = localStorage.getItem('kura_session_token');
+        return {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        };
+      },
+
+      async init() {
+        // 1. URL parametresinde token kontrolü (?token=...)
+        const urlParams = new URLSearchParams(window.location.search);
+        const magicToken = urlParams.get('token');
+
+        if (magicToken) {
+          await this.verifyToken(magicToken);
+          return;
+        }
+
+        // 2. Mevcut oturum kontrolü (/api/auth/me)
+        try {
+          const res = await fetch('/api/auth/me', {
+            headers: this.getHeaders(),
+            credentials: 'include'
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.authenticated && json.user) {
+              this.setAuthenticated(json.user);
+              this.hideModal();
+              this.startApp();
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn("Auth check error:", e);
+        }
+
+        // Oturum yoksa login modalını göster
+        this.showLoginModal();
+      },
+
+      async verifyToken(token) {
+        this.showVerifyingState();
+        try {
+          const res = await fetch(`/api/auth/verify?token=${encodeURIComponent(token)}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+          });
+          const json = await res.json();
+
+          if (json.success && json.user) {
+            if (json.sessionToken) {
+              localStorage.setItem('kura_session_token', json.sessionToken);
+            }
+            // URL'deki ?token parametresini temizle
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+
+            this.setAuthenticated(json.user);
+            this.hideModal();
+            this.startApp();
+          } else {
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+
+            this.resetForm();
+            this.showError(json.error || "Giriş bağlantısı geçersiz veya 60 saniyelik süresi doldu.");
+          }
+        } catch (e) {
+          this.resetForm();
+          this.showError("Giriş yapılırken sunucu hatası oluştu.");
+        }
+      },
+
+      async requestMagicLink() {
+        const email = document.getElementById('authEmailInput').value.trim();
+        const btn = document.getElementById('sendLinkBtn');
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Gönderiliyor...</span>`;
+
+        try {
+          const res = await fetch('/api/auth/send-link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          });
+          const json = await res.json();
+
+          if (json.success) {
+            this.showSentState(json.expiresIn || 60, json.devLink);
+          } else {
+            this.showError(json.error || "Giriş linki gönderilemedi.");
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>60 Saniyelik Giriş Bağlantısı Gönder</span>`;
+          }
+        } catch (e) {
+          this.showError("Sunucuya ulaşılamadı. Lütfen bağlantınızı kontrol edin.");
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>60 Saniyelik Giriş Bağlantısı Gönder</span>`;
+        }
+      },
+
+      showSentState(seconds = 60, devLink = null) {
+        document.getElementById('authFormState').classList.add('hidden');
+        document.getElementById('authVerifyingState').classList.add('hidden');
+        document.getElementById('authSentState').classList.remove('hidden');
+        this.hideAlert();
+
+        if (devLink) {
+          const box = document.getElementById('authDevLinkBox');
+          const btn = document.getElementById('authDevLinkBtn');
+          box.classList.remove('hidden');
+          btn.href = devLink;
+        } else {
+          document.getElementById('authDevLinkBox').classList.add('hidden');
+        }
+
+        this.remainingSeconds = seconds;
+        const timerDisplay = document.getElementById('authTimerDisplay');
+        const timerBar = document.getElementById('authTimerBar');
+        timerDisplay.textContent = this.remainingSeconds;
+        timerBar.style.width = '100%';
+
+        if (this.timerInterval) clearInterval(this.timerInterval);
+
+        this.timerInterval = setInterval(() => {
+          this.remainingSeconds--;
+          if (this.remainingSeconds <= 0) {
+            clearInterval(this.timerInterval);
+            timerDisplay.textContent = '0';
+            timerBar.style.width = '0%';
+            this.showError("⏰ 60 saniyelik giriş bağlantısının süresi doldu. Lütfen yeni bir link isteyin.");
+          } else {
+            timerDisplay.textContent = this.remainingSeconds;
+            const pct = (this.remainingSeconds / seconds) * 100;
+            timerBar.style.width = `${pct}%`;
+          }
+        }, 1000);
+      },
+
+      showVerifyingState() {
+        document.getElementById('authModalOverlay').classList.remove('hidden');
+        document.getElementById('authFormState').classList.add('hidden');
+        document.getElementById('authSentState').classList.add('hidden');
+        document.getElementById('authVerifyingState').classList.remove('hidden');
+        this.hideAlert();
+      },
+
+      showLoginModal() {
+        document.getElementById('authModalOverlay').classList.remove('hidden');
+        this.resetForm();
+      },
+
+      resetForm() {
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        document.getElementById('authFormState').classList.remove('hidden');
+        document.getElementById('authSentState').classList.add('hidden');
+        document.getElementById('authVerifyingState').classList.add('hidden');
+        const btn = document.getElementById('sendLinkBtn');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> <span>60 Saniyelik Giriş Bağlantısı Gönder</span>`;
+        }
+        this.hideAlert();
+      },
+
+      hideModal() {
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        document.getElementById('authModalOverlay').classList.add('hidden');
+      },
+
+      setAuthenticated(user) {
+        this.user = user;
+        const badge = document.getElementById('userBadge');
+        const emailSpan = document.getElementById('userEmailDisplay');
+        if (badge && emailSpan) {
+          badge.classList.remove('hidden');
+          emailSpan.textContent = user.email || 'musadivarci19@gmail.com';
+        }
+      },
+
+      showError(msg) {
+        const alertBox = document.getElementById('authAlertBox');
+        alertBox.className = "p-3.5 rounded-xl text-xs font-semibold border bg-rose-950/60 border-rose-500/40 text-rose-300";
+        alertBox.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1.5 text-rose-400"></i> ${msg}`;
+        alertBox.classList.remove('hidden');
+      },
+
+      hideAlert() {
+        document.getElementById('authAlertBox').classList.add('hidden');
+      },
+
+      async logout() {
+        if (!confirm("Oturumunuzu kapatmak istediğinize emin misiniz?")) return;
+        try {
+          await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: this.getHeaders(),
+            credentials: 'include'
+          });
+        } catch (e) {}
+        localStorage.removeItem('kura_session_token');
+        this.user = null;
+        const badge = document.getElementById('userBadge');
+        if (badge) badge.classList.add('hidden');
+        this.showLoginModal();
+      },
+
+      startApp() {
+        DBService.init(() => {
+          switchClass("7");
+          switchPage("kura");
+        });
+      }
+    };
+
     const DBService = {
       data: {
         classes: {
@@ -945,7 +1265,10 @@
 
       async init(onReady) {
         try {
-          const res = await fetch('/api/data');
+          const res = await fetch('/api/data', {
+            headers: AuthService.getHeaders(),
+            credentials: 'include'
+          });
           if (res.ok) {
             const json = await res.json();
             if (json.success && json.data && json.data.classes) {
@@ -1012,7 +1335,8 @@
         try {
           const res = await fetch('/api/score/dersici', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: AuthService.getHeaders(),
+            credentials: 'include',
             body: JSON.stringify({ classKey, studentName: name, delta })
           });
           if (res.ok) {
@@ -1058,7 +1382,8 @@
         try {
           const res = await fetch('/api/score/odev', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: AuthService.getHeaders(),
+            credentials: 'include',
             body: JSON.stringify({ classKey, studentName: name, delta })
           });
           if (res.ok) {
@@ -1120,7 +1445,8 @@
         try {
           const res = await fetch('/api/score/test', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: AuthService.getHeaders(),
+            credentials: 'include',
             body: JSON.stringify({ classKey, studentName: name, delta })
           });
           if (res.ok) {
@@ -1140,7 +1466,8 @@
         try {
           const res = await fetch('/api/draw', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: AuthService.getHeaders(),
+            credentials: 'include',
             body: JSON.stringify({ classKey, studentName, autoRemove })
           });
           if (res.ok) {
@@ -1162,7 +1489,8 @@
         try {
           const res = await fetch('/api/pool/remove', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: AuthService.getHeaders(),
+            credentials: 'include',
             body: JSON.stringify({ classKey, studentName })
           });
           if (res.ok) {
@@ -1184,7 +1512,8 @@
         try {
           const res = await fetch('/api/pool/reset', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: AuthService.getHeaders(),
+            credentials: 'include',
             body: JSON.stringify({ classKey })
           });
           if (res.ok) {
@@ -1206,7 +1535,8 @@
         try {
           const res = await fetch('/api/scores/reset', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: AuthService.getHeaders(),
+            credentials: 'include',
             body: JSON.stringify({ classKey, type })
           });
           if (res.ok) {
@@ -1227,7 +1557,8 @@
         try {
           const res = await fetch('/api/students/update', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: AuthService.getHeaders(),
+            credentials: 'include',
             body: JSON.stringify({ classKey, names })
           });
           if (res.ok) {
@@ -1248,7 +1579,8 @@
         try {
           const res = await fetch('/api/restore', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: AuthService.getHeaders(),
+            credentials: 'include',
             body: JSON.stringify({ backupData })
           });
           if (res.ok) {
@@ -2195,11 +2527,8 @@
       navigator.clipboard.writeText(text).then(() => alert("Kura sırası kopyalandı."));
     }
 
-    // Launch with SQLite API
-    DBService.init(() => {
-      switchClass("7");
-      switchPage("kura");
-    });
+    // Launch Authentication & SQLite API
+    AuthService.init();
   </script>
 </body>
 </html>
