@@ -5,8 +5,11 @@
 
 const { createClient } = require('@libsql/client');
 const path = require('path');
+const os = require('os');
 
-const dbUrl = process.env.TURSO_DATABASE_URL || `file:${path.join(process.cwd(), 'kura.db')}`;
+const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME;
+const defaultLocalPath = isVercel ? path.join(os.tmpdir(), 'kura.db') : path.join(process.cwd(), 'kura.db');
+const dbUrl = process.env.TURSO_DATABASE_URL || `file:${defaultLocalPath}`;
 const authToken = process.env.TURSO_AUTH_TOKEN || undefined;
 
 const db = createClient({
