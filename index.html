@@ -1115,7 +1115,7 @@
       remainingSeconds: 60,
 
       getHeaders() {
-        const token = localStorage.getItem('kura_session_token');
+        const token = sessionStorage.getItem('kura_session_token');
         return {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
@@ -1123,6 +1123,9 @@
       },
 
       async init() {
+        // Eski localStorage kalıntılarını tamamen temizle
+        localStorage.removeItem('kura_session_token');
+
         // 1. URL parametresinde token kontrolü (?token=...)
         const urlParams = new URLSearchParams(window.location.search);
         const magicToken = urlParams.get('token');
@@ -1133,6 +1136,13 @@
         }
 
         // 2. Mevcut oturum kontrolü (/api/auth/me)
+        // Eğer sessionStorage'da token yoksa doğrudan login göster
+        const currentToken = sessionStorage.getItem('kura_session_token');
+        if (!currentToken) {
+          this.showLoginModal();
+          return;
+        }
+
         try {
           const res = await fetch('/api/auth/me', {
             headers: this.getHeaders(),
@@ -1226,7 +1236,7 @@
 
           if (json.success && json.user) {
             if (json.sessionToken) {
-              localStorage.setItem('kura_session_token', json.sessionToken);
+              sessionStorage.setItem('kura_session_token', json.sessionToken);
             }
             this.setAuthenticated(json.user);
             this.hideModal();
@@ -1262,7 +1272,7 @@
 
           if (json.success && json.user) {
             if (json.sessionToken) {
-              localStorage.setItem('kura_session_token', json.sessionToken);
+              sessionStorage.setItem('kura_session_token', json.sessionToken);
             }
             this.setAuthenticated(json.user);
             this.hideModal();
@@ -1378,6 +1388,7 @@
             credentials: 'include'
           });
         } catch (e) {}
+        sessionStorage.removeItem('kura_session_token');
         localStorage.removeItem('kura_session_token');
         this.user = null;
         const logoutBtn = document.getElementById('headerLogoutBtn');

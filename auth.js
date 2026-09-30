@@ -59,13 +59,13 @@ function verifyPin(pin, challengeToken) {
       return { valid: false, error: "Girdiğiniz 4 haneli kod hatalı! Lütfen kontrol edip tekrar deneyin." };
     }
 
-    // Başarılı Giriş -> 30 Günlük Oturum
+    // Başarılı Giriş -> Oturum (Tarayıcı kapanınca silinir)
     const sessionToken = jwt.sign(
       { email: decoded.email, purpose: 'session' },
       JWT_SECRET,
-      { expiresIn: '30d' }
+      { expiresIn: '12h' }
     );
-    const sessionExpiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000);
+    const sessionExpiresAt = Date.now() + (12 * 60 * 60 * 1000);
 
     return {
       valid: true,

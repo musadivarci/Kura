@@ -479,7 +479,7 @@ module.exports = async (req, res) => {
         return sendJSON(res, { success: false, error: result.error }, 400);
       }
 
-      const cookieVal = `auth_session=${result.sessionToken}; Path=/; Max-Age=2592000; SameSite=Lax; HttpOnly`;
+      const cookieVal = `auth_session=${result.sessionToken}; Path=/; SameSite=Lax; HttpOnly`;
       return sendJSON(res, {
         success: true,
         user: { email: result.email },
