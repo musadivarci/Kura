@@ -37,6 +37,19 @@ function generatePinChallenge(email) {
   return { pin, challengeToken, expiresAt };
 }
 
+const MAX_FAILED_ATTEMPTS = 5;
+const attemptTracker = new Map();
+
+// Periyodik temizleme (bellek şişmesini önlemek için)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of attemptTracker.entries()) {
+    if (now - val.lastAttempt > 120000) { // 2 dakika sonra sil
+      attemptTracker.delete(key);
+    }
+  }
+}, 60000);
+
 // PIN Doğrulama
 function verifyPin(pin, challengeToken) {
   if (!pin || !challengeToken) {
@@ -54,10 +67,31 @@ function verifyPin(pin, challengeToken) {
       return { valid: false, error: "Geçersiz giriş isteği. Lütfen yeni kod isteyin." };
     }
 
+    const trackerKey = decoded.nonce || challengeToken.slice(-16);
+    const tracker = attemptTracker.get(trackerKey) || { count: 0, lastAttempt: Date.now() };
+
+    if (tracker.count >= MAX_FAILED_ATTEMPTS) {
+      return {
+        valid: false,
+        error: "Çok fazla hatalı deneme yapıldı! Güvenlik sebebiyle bu kod iptal edildi. Lütfen yeni bir kod isteyin."
+      };
+    }
+
     const expectedHash = hashPin(cleanPin);
     if (decoded.pinHash !== expectedHash) {
-      return { valid: false, error: "Girdiğiniz 4 haneli kod hatalı! Lütfen kontrol edip tekrar deneyin." };
+      tracker.count++;
+      tracker.lastAttempt = Date.now();
+      attemptTracker.set(trackerKey, tracker);
+
+      const remaining = MAX_FAILED_ATTEMPTS - tracker.count;
+      return {
+        valid: false,
+        error: `Girdiğiniz 4 haneli kod hatalı! (${remaining} deneme hakkınız kaldı)`
+      };
     }
+
+    // Başarılı giriş -> izleyiciyi temizle
+    attemptTracker.delete(trackerKey);
 
     // Başarılı Giriş -> Oturum (Tarayıcı kapanınca silinir)
     const sessionToken = jwt.sign(

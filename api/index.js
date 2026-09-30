@@ -1,6 +1,7 @@
 // ==========================================
 // VERCEL SERVERLESS API — KURA & PERFORMANS
 // Supabase (PostgreSQL) / Turso / SQLite Backend — Musa DİVARCI
+// Güçlendirilmiş Güvenlik & Yetkilendirme Katmanı (2026)
 // ==========================================
 
 const fs = require('fs');
@@ -67,6 +68,38 @@ const dbType = useSupabase
   : (rawTursoUrl.startsWith('libsql') || rawTursoUrl.startsWith('https://') ? 'turso' : (isVercel ? 'sqlite-tmp' : 'sqlite-local'));
 
 let isInitialized = false;
+
+// --- GÜVENLİK & RATE LIMITING YARDIMCILARI ---
+const rateLimitMap = new Map(); // IP -> Array of timestamps
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) return forwarded.split(',')[0].trim();
+  return req.headers['x-real-ip'] || req.socket?.remoteAddress || 'unknown-ip';
+}
+
+function checkRateLimit(ip, maxRequests = 5, windowMs = 300000) { // 5 dakikada en fazla 5 istek
+  const now = Date.now();
+  const timestamps = (rateLimitMap.get(ip) || []).filter(t => now - t < windowMs);
+  if (timestamps.length >= maxRequests) {
+    return false; // Limit aşıldı
+  }
+  timestamps.push(now);
+  rateLimitMap.set(ip, timestamps);
+  return true;
+}
+
+// XSS & Zararlı Karakter Temizleyici (Input Sanitization)
+function sanitizeText(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/<[^>]*>?/gm, '').trim();
+}
+
+function sanitizeNumber(val, defaultVal = 0, min = -100, max = 100) {
+  const num = parseInt(val, 10);
+  if (isNaN(num)) return defaultVal;
+  return Math.max(min, Math.min(max, num));
+}
 
 // Varsayılan Sınıf & Öğrenci Listeleri
 const CLASS_DEFAULTS = {
@@ -424,11 +457,28 @@ function sendJSON(res, data, status = 200, extraHeaders = {}) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // OWASP Güvenlik Başlıkları
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
   Object.keys(extraHeaders).forEach(k => {
     res.setHeader(k, extraHeaders[k]);
   });
   res.statusCode = status;
   res.end(JSON.stringify(data));
+}
+
+// Oturum Doğrulama Middleware
+function authenticateRequest(req) {
+  const authHeader = req.headers.authorization;
+  let sessionToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
+  if (!sessionToken) {
+    sessionToken = getCookie(req, 'auth_session');
+  }
+  return auth.verifySession(sessionToken);
 }
 
 // Vercel Serverless Handler
@@ -446,13 +496,22 @@ module.exports = async (req, res) => {
 
   const url = req.url || '';
   const pathname = url.split('?')[0];
+  const clientIp = getClientIp(req);
 
   try {
     // --- AUTH ENDPOINTS ---
-    // 1. POST /api/auth/send-pin & /api/auth/send-link
+    // 1. POST /api/auth/send-pin
     if ((pathname.endsWith('/auth/send-pin') || pathname.endsWith('/auth/send-link')) && req.method === 'POST') {
+      // Rate Limit Kontrolü: 5 dakikada en fazla 4 istek
+      if (!checkRateLimit(clientIp, 4, 300000)) {
+        return sendJSON(res, {
+          success: false,
+          error: "Çok fazla giriş kodu isteği gönderildi. Lütfen birkaç dakika sonra tekrar deneyin."
+        }, 429);
+      }
+
       const body = await parseBody(req);
-      const email = (body.email || auth.ALLOWED_EMAIL).trim().toLowerCase();
+      const email = sanitizeText(body.email || auth.ALLOWED_EMAIL).toLowerCase();
 
       if (email !== auth.ALLOWED_EMAIL) {
         return sendJSON(res, { success: false, error: `Sadece ${auth.ALLOWED_EMAIL} adresi ile giriş yapılabilir.` }, 403);
@@ -472,7 +531,8 @@ module.exports = async (req, res) => {
     // 2. POST /api/auth/verify-pin
     if (pathname.endsWith('/auth/verify-pin') && req.method === 'POST') {
       const body = await parseBody(req);
-      const { pin, challengeToken } = body;
+      const pin = sanitizeText(body.pin);
+      const challengeToken = body.challengeToken;
 
       const result = auth.verifyPin(pin, challengeToken);
       if (!result.valid) {
@@ -489,13 +549,7 @@ module.exports = async (req, res) => {
 
     // 3. GET /api/auth/me
     if (pathname.endsWith('/auth/me') && req.method === 'GET') {
-      const authHeader = req.headers.authorization;
-      let sessionToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null;
-      if (!sessionToken) {
-        sessionToken = getCookie(req, 'auth_session');
-      }
-
-      const session = auth.verifySession(sessionToken);
+      const session = authenticateRequest(req);
       if (!session) {
         return sendJSON(res, { authenticated: false });
       }
@@ -508,6 +562,12 @@ module.exports = async (req, res) => {
       return sendJSON(res, { success: true }, 200, { 'Set-Cookie': clearCookie });
     }
 
+    // --- TÜM VERİ VE DEĞİŞİKLİK ENDPOINTLERİ İÇİN ZORUNLU OTURUM KONTROLÜ ---
+    const authenticatedUser = authenticateRequest(req);
+    if (!authenticatedUser) {
+      return sendJSON(res, { success: false, error: "Yetkisiz erişim! Lütfen önce giriş yapın." }, 401);
+    }
+
     await ensureTablesAndSeed();
 
     // GET /api/data
@@ -518,7 +578,10 @@ module.exports = async (req, res) => {
 
     // POST /api/score/dersici
     if (pathname.endsWith('/score/dersici') && req.method === 'POST') {
-      const { classKey, studentName, delta } = await parseBody(req);
+      const body = await parseBody(req);
+      const classKey = sanitizeText(body.classKey);
+      const studentName = sanitizeText(body.studentName);
+      const delta = sanitizeNumber(body.delta, 1, -10, 10);
       
       if (useSupabase) {
         const { data: st } = await supabase.from('students').select('id').eq('class_id', classKey).eq('name', studentName).maybeSingle();
@@ -547,7 +610,10 @@ module.exports = async (req, res) => {
 
     // POST /api/score/odev
     if (pathname.endsWith('/score/odev') && req.method === 'POST') {
-      const { classKey, studentName, delta } = await parseBody(req);
+      const body = await parseBody(req);
+      const classKey = sanitizeText(body.classKey);
+      const studentName = sanitizeText(body.studentName);
+      const delta = sanitizeNumber(body.delta, 1, -10, 10);
 
       if (useSupabase) {
         const { data: st } = await supabase.from('students').select('id').eq('class_id', classKey).eq('name', studentName).maybeSingle();
@@ -576,7 +642,10 @@ module.exports = async (req, res) => {
 
     // POST /api/score/test
     if (pathname.endsWith('/score/test') && req.method === 'POST') {
-      const { classKey, studentName, delta } = await parseBody(req);
+      const body = await parseBody(req);
+      const classKey = sanitizeText(body.classKey);
+      const studentName = sanitizeText(body.studentName);
+      const delta = sanitizeNumber(body.delta, 1, -10, 10);
 
       if (useSupabase) {
         const { data: st } = await supabase.from('students').select('id').eq('class_id', classKey).eq('name', studentName).maybeSingle();
@@ -603,7 +672,10 @@ module.exports = async (req, res) => {
 
     // POST /api/score/undo
     if (pathname.endsWith('/score/undo') && req.method === 'POST') {
-      const { classKey, studentName, type } = await parseBody(req);
+      const body = await parseBody(req);
+      const classKey = sanitizeText(body.classKey);
+      const studentName = sanitizeText(body.studentName);
+      const type = sanitizeText(body.type);
 
       if (useSupabase) {
         const { data: st } = await supabase.from('students').select('id').eq('class_id', classKey).eq('name', studentName).maybeSingle();
@@ -666,7 +738,10 @@ module.exports = async (req, res) => {
 
     // POST /api/draw
     if (pathname.endsWith('/draw') && req.method === 'POST') {
-      const { classKey, studentName, autoRemove } = await parseBody(req);
+      const body = await parseBody(req);
+      const classKey = sanitizeText(body.classKey);
+      const studentName = sanitizeText(body.studentName);
+      const autoRemove = Boolean(body.autoRemove);
 
       if (useSupabase) {
         const { data: st } = await supabase.from('students').select('id').eq('class_id', classKey).eq('name', studentName).maybeSingle();
@@ -708,7 +783,9 @@ module.exports = async (req, res) => {
 
     // POST /api/pool/remove
     if (pathname.endsWith('/pool/remove') && req.method === 'POST') {
-      const { classKey, studentName } = await parseBody(req);
+      const body = await parseBody(req);
+      const classKey = sanitizeText(body.classKey);
+      const studentName = sanitizeText(body.studentName);
 
       if (useSupabase) {
         await supabase.from('students').update({ in_pool: 0 }).eq('class_id', classKey).eq('name', studentName);
@@ -725,7 +802,8 @@ module.exports = async (req, res) => {
 
     // POST /api/pool/reset
     if (pathname.endsWith('/pool/reset') && req.method === 'POST') {
-      const { classKey } = await parseBody(req);
+      const body = await parseBody(req);
+      const classKey = sanitizeText(body.classKey);
 
       if (useSupabase) {
         await supabase.from('students').update({ in_pool: 1 }).eq('class_id', classKey);
@@ -747,7 +825,9 @@ module.exports = async (req, res) => {
 
     // POST /api/scores/reset
     if (pathname.endsWith('/scores/reset') && req.method === 'POST') {
-      const { classKey, type } = await parseBody(req);
+      const body = await parseBody(req);
+      const classKey = sanitizeText(body.classKey);
+      const type = sanitizeText(body.type);
 
       if (useSupabase) {
         if (type === 'dersici') {
@@ -773,14 +853,18 @@ module.exports = async (req, res) => {
 
     // POST /api/students/update
     if (pathname.endsWith('/students/update') && req.method === 'POST') {
-      const { classKey, names } = await parseBody(req);
+      const body = await parseBody(req);
+      const classKey = sanitizeText(body.classKey);
+      const names = body.names;
       if (!Array.isArray(names)) return sendJSON(res, { success: false, error: "Geçersiz format" }, 400);
+
+      const sanitizedNames = names.map(n => sanitizeText(n)).filter(n => n.length > 0);
 
       if (useSupabase) {
         await supabase.from('students').delete().eq('class_id', classKey);
-        const rows = names.filter(n => n && n.trim()).map((n, idx) => ({
+        const rows = sanitizedNames.map((n, idx) => ({
           class_id: classKey,
-          name: n.trim(),
+          name: n,
           in_pool: 1,
           sort_order: idx
         }));
@@ -789,13 +873,11 @@ module.exports = async (req, res) => {
         }
       } else {
         await libsql.execute({ sql: "DELETE FROM students WHERE class_id = ?", args: [classKey] });
-        for (let idx = 0; idx < names.length; idx++) {
-          if (names[idx] && names[idx].trim()) {
-            await libsql.execute({
-              sql: "INSERT INTO students (class_id, name, in_pool, sort_order) VALUES (?, ?, 1, ?)",
-              args: [classKey, names[idx].trim(), idx]
-            });
-          }
+        for (let idx = 0; idx < sanitizedNames.length; idx++) {
+          await libsql.execute({
+            sql: "INSERT INTO students (class_id, name, in_pool, sort_order) VALUES (?, ?, 1, ?)",
+            args: [classKey, sanitizedNames[idx], idx]
+          });
         }
       }
 
@@ -820,7 +902,7 @@ module.exports = async (req, res) => {
           if (cls && cls.full) {
             const studentIdMap = {};
             for (let idx = 0; idx < cls.full.length; idx++) {
-              const name = cls.full[idx];
+              const name = sanitizeText(cls.full[idx]);
               const inPool = (cls.remaining && cls.remaining.includes(name)) ? 1 : 0;
               const { data: stRow } = await supabase.from('students').insert({
                 class_id: clsKey,
@@ -840,7 +922,7 @@ module.exports = async (req, res) => {
                     dersRows.push({
                       student_id: sid,
                       class_id: clsKey,
-                      type: tok,
+                      type: sanitizeText(tok),
                       delta: tok === '+' ? 1 : -1
                     });
                   }
@@ -858,7 +940,7 @@ module.exports = async (req, res) => {
                     odevRows.push({
                       student_id: sid,
                       class_id: clsKey,
-                      type: tok,
+                      type: sanitizeText(tok),
                       delta: tok === '+' ? 1 : -1
                     });
                   }
@@ -892,7 +974,7 @@ module.exports = async (req, res) => {
                 histRows.push({
                   student_id: sid,
                   class_id: clsKey,
-                  student_name: h.name
+                  student_name: sanitizeText(h.name)
                 });
               }
               if (histRows.length > 0) await supabase.from('draw_history').insert(histRows);
@@ -911,7 +993,7 @@ module.exports = async (req, res) => {
           if (cls && cls.full) {
             const studentIdMap = {};
             for (let idx = 0; idx < cls.full.length; idx++) {
-              const name = cls.full[idx];
+              const name = sanitizeText(cls.full[idx]);
               const inPool = (cls.remaining && cls.remaining.includes(name)) ? 1 : 0;
               const res = await libsql.execute({
                 sql: "INSERT INTO students (class_id, name, in_pool, sort_order) VALUES (?, ?, ?, ?)",
@@ -927,7 +1009,7 @@ module.exports = async (req, res) => {
                   for (const tok of cls.tokens[name]) {
                     await libsql.execute({
                       sql: "INSERT INTO ders_ici_logs (student_id, class_id, type, delta) VALUES (?, ?, ?, ?)",
-                      args: [sid, clsKey, tok, tok === '+' ? 1 : -1]
+                      args: [sid, clsKey, sanitizeText(tok), tok === '+' ? 1 : -1]
                     });
                   }
                 }
@@ -941,7 +1023,7 @@ module.exports = async (req, res) => {
                   for (const tok of cls.hwTokens[name]) {
                     await libsql.execute({
                       sql: "INSERT INTO odev_logs (student_id, class_id, type, delta) VALUES (?, ?, ?, ?)",
-                      args: [sid, clsKey, tok, tok === '+' ? 1 : -1]
+                      args: [sid, clsKey, sanitizeText(tok), tok === '+' ? 1 : -1]
                     });
                   }
                 }
@@ -968,7 +1050,7 @@ module.exports = async (req, res) => {
                 const sid = studentIdMap[h.name] || 0;
                 await libsql.execute({
                   sql: "INSERT INTO draw_history (student_id, class_id, student_name) VALUES (?, ?, ?)",
-                  args: [sid, clsKey, h.name]
+                  args: [sid, clsKey, sanitizeText(h.name)]
                 });
               }
             }
