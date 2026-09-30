@@ -1,22 +1,70 @@
 // ==========================================
 // VERCEL SERVERLESS API — KURA & PERFORMANS
-// SQLite / Turso Cloud Backend — Musa DİVARCI
+// Supabase (PostgreSQL) / Turso / SQLite Backend — Musa DİVARCI
 // ==========================================
 
-const { createClient } = require('@libsql/client');
+const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { createClient: createSupabaseClient } = require('@supabase/supabase-js');
+const { createClient: createLibsqlClient } = require('@libsql/client');
 const auth = require('../auth');
+
+function loadEnv() {
+  const envFiles = ['.env.local', '.env'];
+  for (const envFile of envFiles) {
+    const envPath = path.join(process.cwd(), envFile);
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      content.split('\n').forEach(line => {
+        line = line.trim();
+        if (!line || line.startsWith('#')) return;
+        const eqIdx = line.indexOf('=');
+        if (eqIdx > 0) {
+          const key = line.substring(0, eqIdx).trim();
+          let val = line.substring(eqIdx + 1).trim();
+          if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+            val = val.substring(1, val.length - 1);
+          }
+          if (!process.env[key]) {
+            process.env[key] = val;
+          }
+        }
+      });
+    }
+  }
+}
+
+loadEnv();
+
+// --- VERİTABANI BAĞLANTISI YAPILANDIRMASI ---
+const supabaseUrl = (process.env.SUPABASE_URL || '').trim();
+const supabaseKey = (process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+const useSupabase = Boolean(supabaseUrl && supabaseKey);
 
 const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME;
 const defaultLocalPath = isVercel ? path.join(os.tmpdir(), 'kura.db') : path.join(process.cwd(), 'kura.db');
-const dbUrl = process.env.TURSO_DATABASE_URL || `file:${defaultLocalPath}`;
-const authToken = process.env.TURSO_AUTH_TOKEN || undefined;
+const rawTursoUrl = (process.env.TURSO_DATABASE_URL || '').trim();
+const libsqlDbUrl = rawTursoUrl ? rawTursoUrl : `file:${defaultLocalPath}`;
+const libsqlAuthToken = (process.env.TURSO_AUTH_TOKEN || '').trim() || undefined;
 
-const db = createClient({
-  url: dbUrl,
-  authToken: authToken
-});
+let supabase = null;
+let libsql = null;
+
+if (useSupabase) {
+  supabase = createSupabaseClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false }
+  });
+} else {
+  libsql = createLibsqlClient({
+    url: libsqlDbUrl,
+    authToken: libsqlAuthToken
+  });
+}
+
+const dbType = useSupabase 
+  ? 'supabase' 
+  : (rawTursoUrl.startsWith('libsql') || rawTursoUrl.startsWith('https://') ? 'turso' : (isVercel ? 'sqlite-tmp' : 'sqlite-local'));
 
 let isInitialized = false;
 
@@ -55,83 +103,103 @@ const CLASS_DEFAULTS = {
 async function ensureTablesAndSeed() {
   if (isInitialized) return;
 
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS classes (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL
-    );
-  `);
+  if (useSupabase) {
+    try {
+      const { data: clsData, error: clsErr } = await supabase.from('classes').select('id');
+      if (!clsErr && (!clsData || clsData.length === 0)) {
+        for (const clsKey of ['6', '7', '8']) {
+          await supabase.from('classes').upsert({ id: clsKey, name: `${clsKey}. Sınıf` });
+          const list = CLASS_DEFAULTS[clsKey];
+          const studentRows = list.map((name, idx) => ({
+            class_id: clsKey,
+            name: name.trim(),
+            in_pool: 1,
+            sort_order: idx
+          }));
+          await supabase.from('students').insert(studentRows);
+        }
+      }
+    } catch (e) {
+      console.warn("Supabase tablosu kontrol edilirken uyarı:", e.message);
+    }
+  } else {
+    await libsql.execute(`
+      CREATE TABLE IF NOT EXISTS classes (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL
+      );
+    `);
 
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS students (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      class_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      in_pool INTEGER NOT NULL DEFAULT 1,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
+    await libsql.execute(`
+      CREATE TABLE IF NOT EXISTS students (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        class_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        in_pool INTEGER NOT NULL DEFAULT 1,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS ders_ici_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      student_id INTEGER NOT NULL,
-      class_id TEXT NOT NULL,
-      type TEXT NOT NULL,
-      delta INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
+    await libsql.execute(`
+      CREATE TABLE IF NOT EXISTS ders_ici_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER NOT NULL,
+        class_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        delta INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS odev_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      student_id INTEGER NOT NULL,
-      class_id TEXT NOT NULL,
-      type TEXT NOT NULL,
-      delta INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
+    await libsql.execute(`
+      CREATE TABLE IF NOT EXISTS odev_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER NOT NULL,
+        class_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        delta INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS test_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      student_id INTEGER NOT NULL,
-      class_id TEXT NOT NULL,
-      points INTEGER NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
+    await libsql.execute(`
+      CREATE TABLE IF NOT EXISTS test_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER NOT NULL,
+        class_id TEXT NOT NULL,
+        points INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS draw_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      student_id INTEGER NOT NULL,
-      class_id TEXT NOT NULL,
-      student_name TEXT NOT NULL,
-      drawn_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
+    await libsql.execute(`
+      CREATE TABLE IF NOT EXISTS draw_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER NOT NULL,
+        class_id TEXT NOT NULL,
+        student_name TEXT NOT NULL,
+        drawn_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-  // Sınıf sayısı kontrolü
-  const res = await db.execute("SELECT COUNT(*) as count FROM classes");
-  const count = Number(res.rows[0].count);
+    const res = await libsql.execute("SELECT COUNT(*) as count FROM classes");
+    const count = Number(res.rows[0].count);
 
-  if (count === 0) {
-    for (const clsKey of ['6', '7', '8']) {
-      await db.execute({
-        sql: "INSERT INTO classes (id, name) VALUES (?, ?)",
-        args: [clsKey, `${clsKey}. Sınıf`]
-      });
-
-      const list = CLASS_DEFAULTS[clsKey];
-      for (let idx = 0; idx < list.length; idx++) {
-        await db.execute({
-          sql: "INSERT INTO students (class_id, name, in_pool, sort_order) VALUES (?, ?, 1, ?)",
-          args: [clsKey, list[idx].trim(), idx]
+    if (count === 0) {
+      for (const clsKey of ['6', '7', '8']) {
+        await libsql.execute({
+          sql: "INSERT INTO classes (id, name) VALUES (?, ?)",
+          args: [clsKey, `${clsKey}. Sınıf`]
         });
+
+        const list = CLASS_DEFAULTS[clsKey];
+        for (let idx = 0; idx < list.length; idx++) {
+          await libsql.execute({
+            sql: "INSERT INTO students (class_id, name, in_pool, sort_order) VALUES (?, ?, 1, ?)",
+            args: [clsKey, list[idx].trim(), idx]
+          });
+        }
       }
     }
   }
@@ -144,98 +212,185 @@ async function getFullData() {
   await ensureTablesAndSeed();
   const classes = {};
 
-  for (const clsKey of ['6', '7', '8']) {
-    const studentsRes = await db.execute({
-      sql: "SELECT * FROM students WHERE class_id = ? ORDER BY sort_order ASC, id ASC",
-      args: [clsKey]
-    });
+  if (useSupabase) {
+    const { data: allStudents, error: stErr } = await supabase
+      .from('students')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true });
 
-    const fullNames = [];
-    const remainingNames = [];
-    const scores = {};
-    const tokens = {};
-    const hwScores = {};
-    const hwTokens = {};
-    const testScores = {};
-    const testTokens = {};
-    const studentMap = {};
+    if (stErr) throw new Error("Supabase Öğrenciler Yüklenemedi: " + stErr.message);
 
-    studentsRes.rows.forEach(st => {
-      fullNames.push(st.name);
-      studentMap[st.id] = st.name;
-      if (st.in_pool === 1) {
-        remainingNames.push(st.name);
-      }
-      scores[st.name] = { plus: 0, minus: 0 };
-      tokens[st.name] = [];
-      hwScores[st.name] = { plus: 0, minus: 0 };
-      hwTokens[st.name] = [];
-      testScores[st.name] = 0;
-      testTokens[st.name] = [];
-    });
+    const { data: allDers } = await supabase.from('ders_ici_logs').select('*').order('id', { ascending: true });
+    const { data: allOdev } = await supabase.from('odev_logs').select('*').order('id', { ascending: true });
+    const { data: allTest } = await supabase.from('test_logs').select('*').order('id', { ascending: true });
+    const { data: allHistory } = await supabase.from('draw_history').select('*').order('id', { ascending: true });
 
-    // Ders İçi
-    const dersRes = await db.execute({
-      sql: "SELECT * FROM ders_ici_logs WHERE class_id = ? ORDER BY id ASC",
-      args: [clsKey]
-    });
-    dersRes.rows.forEach(l => {
-      const name = studentMap[l.student_id];
-      if (name && scores[name]) {
-        if (l.delta > 0) scores[name].plus += Number(l.delta);
-        else scores[name].minus += Math.abs(Number(l.delta));
-        tokens[name].push(l.type);
-      }
-    });
+    for (const clsKey of ['6', '7', '8']) {
+      const clsStudents = (allStudents || []).filter(s => s.class_id === clsKey);
+      const fullNames = [];
+      const remainingNames = [];
+      const scores = {};
+      const tokens = {};
+      const hwScores = {};
+      const hwTokens = {};
+      const testScores = {};
+      const testTokens = {};
+      const studentMap = {};
 
-    // Ödev
-    const odevRes = await db.execute({
-      sql: "SELECT * FROM odev_logs WHERE class_id = ? ORDER BY id ASC",
-      args: [clsKey]
-    });
-    odevRes.rows.forEach(l => {
-      const name = studentMap[l.student_id];
-      if (name && hwScores[name]) {
-        if (l.delta > 0) hwScores[name].plus += Number(l.delta);
-        else hwScores[name].minus += Math.abs(Number(l.delta));
-        hwTokens[name].push(l.type);
-      }
-    });
+      clsStudents.forEach(st => {
+        fullNames.push(st.name);
+        studentMap[st.id] = st.name;
+        if (st.in_pool === 1) {
+          remainingNames.push(st.name);
+        }
+        scores[st.name] = { plus: 0, minus: 0 };
+        tokens[st.name] = [];
+        hwScores[st.name] = { plus: 0, minus: 0 };
+        hwTokens[st.name] = [];
+        testScores[st.name] = 0;
+        testTokens[st.name] = [];
+      });
 
-    // Test
-    const testRes = await db.execute({
-      sql: "SELECT * FROM test_logs WHERE class_id = ? ORDER BY id ASC",
-      args: [clsKey]
-    });
-    testRes.rows.forEach(l => {
-      const name = studentMap[l.student_id];
-      if (name && testScores[name] !== undefined) {
-        testScores[name] += Number(l.points);
-        testTokens[name].push(Number(l.points) > 0 ? `+${l.points}` : `${l.points}`);
-      }
-    });
+      (allDers || []).filter(d => d.class_id === clsKey).forEach(l => {
+        const name = studentMap[l.student_id];
+        if (name && scores[name]) {
+          if (l.delta > 0) scores[name].plus += Number(l.delta);
+          else scores[name].minus += Math.abs(Number(l.delta));
+          tokens[name].push(l.type);
+        }
+      });
 
-    // Kura Geçmişi
-    const historyRes = await db.execute({
-      sql: "SELECT * FROM draw_history WHERE class_id = ? ORDER BY id ASC",
-      args: [clsKey]
-    });
-    const history = historyRes.rows.map(h => ({
-      name: h.student_name,
-      time: new Date(h.drawn_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
-    }));
+      (allOdev || []).filter(o => o.class_id === clsKey).forEach(l => {
+        const name = studentMap[l.student_id];
+        if (name && hwScores[name]) {
+          if (l.delta > 0) hwScores[name].plus += Number(l.delta);
+          else hwScores[name].minus += Math.abs(Number(l.delta));
+          hwTokens[name].push(l.type);
+        }
+      });
 
-    classes[clsKey] = {
-      full: fullNames,
-      remaining: remainingNames,
-      history: history,
-      scores: scores,
-      tokens: tokens,
-      hwScores: hwScores,
-      hwTokens: hwTokens,
-      testScores: testScores,
-      testTokens: testTokens
-    };
+      (allTest || []).filter(t => t.class_id === clsKey).forEach(l => {
+        const name = studentMap[l.student_id];
+        if (name && testScores[name] !== undefined) {
+          testScores[name] += Number(l.points);
+          testTokens[name].push(Number(l.points) > 0 ? `+${l.points}` : `${l.points}`);
+        }
+      });
+
+      const history = (allHistory || [])
+        .filter(h => h.class_id === clsKey)
+        .map(h => ({
+          name: h.student_name,
+          time: new Date(h.drawn_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+        }));
+
+      classes[clsKey] = {
+        full: fullNames,
+        remaining: remainingNames,
+        history: history,
+        scores: scores,
+        tokens: tokens,
+        hwScores: hwScores,
+        hwTokens: hwTokens,
+        testScores: testScores,
+        testTokens: testTokens
+      };
+    }
+  } else {
+    for (const clsKey of ['6', '7', '8']) {
+      const studentsRes = await libsql.execute({
+        sql: "SELECT * FROM students WHERE class_id = ? ORDER BY sort_order ASC, id ASC",
+        args: [clsKey]
+      });
+
+      const fullNames = [];
+      const remainingNames = [];
+      const scores = {};
+      const tokens = {};
+      const hwScores = {};
+      const hwTokens = {};
+      const testScores = {};
+      const testTokens = {};
+      const studentMap = {};
+
+      studentsRes.rows.forEach(st => {
+        fullNames.push(st.name);
+        studentMap[st.id] = st.name;
+        if (st.in_pool === 1) {
+          remainingNames.push(st.name);
+        }
+        scores[st.name] = { plus: 0, minus: 0 };
+        tokens[st.name] = [];
+        hwScores[st.name] = { plus: 0, minus: 0 };
+        hwTokens[st.name] = [];
+        testScores[st.name] = 0;
+        testTokens[st.name] = [];
+      });
+
+      // Ders İçi
+      const dersRes = await libsql.execute({
+        sql: "SELECT * FROM ders_ici_logs WHERE class_id = ? ORDER BY id ASC",
+        args: [clsKey]
+      });
+      dersRes.rows.forEach(l => {
+        const name = studentMap[l.student_id];
+        if (name && scores[name]) {
+          if (l.delta > 0) scores[name].plus += Number(l.delta);
+          else scores[name].minus += Math.abs(Number(l.delta));
+          tokens[name].push(l.type);
+        }
+      });
+
+      // Ödev
+      const odevRes = await libsql.execute({
+        sql: "SELECT * FROM odev_logs WHERE class_id = ? ORDER BY id ASC",
+        args: [clsKey]
+      });
+      odevRes.rows.forEach(l => {
+        const name = studentMap[l.student_id];
+        if (name && hwScores[name]) {
+          if (l.delta > 0) hwScores[name].plus += Number(l.delta);
+          else hwScores[name].minus += Math.abs(Number(l.delta));
+          hwTokens[name].push(l.type);
+        }
+      });
+
+      // Test
+      const testRes = await libsql.execute({
+        sql: "SELECT * FROM test_logs WHERE class_id = ? ORDER BY id ASC",
+        args: [clsKey]
+      });
+      testRes.rows.forEach(l => {
+        const name = studentMap[l.student_id];
+        if (name && testScores[name] !== undefined) {
+          testScores[name] += Number(l.points);
+          testTokens[name].push(Number(l.points) > 0 ? `+${l.points}` : `${l.points}`);
+        }
+      });
+
+      // Kura Geçmişi
+      const historyRes = await libsql.execute({
+        sql: "SELECT * FROM draw_history WHERE class_id = ? ORDER BY id ASC",
+        args: [clsKey]
+      });
+      const history = historyRes.rows.map(h => ({
+        name: h.student_name,
+        time: new Date(h.drawn_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+      }));
+
+      classes[clsKey] = {
+        full: fullNames,
+        remaining: remainingNames,
+        history: history,
+        scores: scores,
+        tokens: tokens,
+        hwScores: hwScores,
+        hwTokens: hwTokens,
+        testScores: testScores,
+        testTokens: testTokens
+      };
+    }
   }
 
   return { classes };
@@ -304,9 +459,6 @@ module.exports = async (req, res) => {
       }
 
       const { pin, challengeToken, expiresAt } = auth.generatePinChallenge(email);
-      const host = req.headers.host;
-      const protocol = req.headers['x-forwarded-proto'] || 'https';
-
       const mailResult = await auth.sendPinEmail(email, pin);
 
       return sendJSON(res, {
@@ -361,24 +513,33 @@ module.exports = async (req, res) => {
     // GET /api/data
     if (pathname.endsWith('/data') && req.method === 'GET') {
       const data = await getFullData();
-      return sendJSON(res, { success: true, data });
+      return sendJSON(res, { success: true, data, dbType });
     }
 
     // POST /api/score/dersici
     if (pathname.endsWith('/score/dersici') && req.method === 'POST') {
       const { classKey, studentName, delta } = await parseBody(req);
-      const studentRes = await db.execute({
-        sql: "SELECT * FROM students WHERE class_id = ? AND name = ?",
-        args: [classKey, studentName]
-      });
-      if (studentRes.rows.length === 0) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
       
-      const st = studentRes.rows[0];
-      const type = delta > 0 ? '+' : '-';
-      await db.execute({
-        sql: "INSERT INTO ders_ici_logs (student_id, class_id, type, delta) VALUES (?, ?, ?, ?)",
-        args: [st.id, classKey, type, delta]
-      });
+      if (useSupabase) {
+        const { data: st } = await supabase.from('students').select('id').eq('class_id', classKey).eq('name', studentName).maybeSingle();
+        if (!st) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
+        
+        const type = delta > 0 ? '+' : '-';
+        await supabase.from('ders_ici_logs').insert({ student_id: st.id, class_id: classKey, type, delta });
+      } else {
+        const studentRes = await libsql.execute({
+          sql: "SELECT * FROM students WHERE class_id = ? AND name = ?",
+          args: [classKey, studentName]
+        });
+        if (studentRes.rows.length === 0) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
+        
+        const st = studentRes.rows[0];
+        const type = delta > 0 ? '+' : '-';
+        await libsql.execute({
+          sql: "INSERT INTO ders_ici_logs (student_id, class_id, type, delta) VALUES (?, ?, ?, ?)",
+          args: [st.id, classKey, type, delta]
+        });
+      }
 
       const data = await getFullData();
       return sendJSON(res, { success: true, data });
@@ -387,18 +548,27 @@ module.exports = async (req, res) => {
     // POST /api/score/odev
     if (pathname.endsWith('/score/odev') && req.method === 'POST') {
       const { classKey, studentName, delta } = await parseBody(req);
-      const studentRes = await db.execute({
-        sql: "SELECT * FROM students WHERE class_id = ? AND name = ?",
-        args: [classKey, studentName]
-      });
-      if (studentRes.rows.length === 0) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
 
-      const st = studentRes.rows[0];
-      const type = delta > 0 ? '+' : '-';
-      await db.execute({
-        sql: "INSERT INTO odev_logs (student_id, class_id, type, delta) VALUES (?, ?, ?, ?)",
-        args: [st.id, classKey, type, delta]
-      });
+      if (useSupabase) {
+        const { data: st } = await supabase.from('students').select('id').eq('class_id', classKey).eq('name', studentName).maybeSingle();
+        if (!st) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
+
+        const type = delta > 0 ? '+' : '-';
+        await supabase.from('odev_logs').insert({ student_id: st.id, class_id: classKey, type, delta });
+      } else {
+        const studentRes = await libsql.execute({
+          sql: "SELECT * FROM students WHERE class_id = ? AND name = ?",
+          args: [classKey, studentName]
+        });
+        if (studentRes.rows.length === 0) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
+
+        const st = studentRes.rows[0];
+        const type = delta > 0 ? '+' : '-';
+        await libsql.execute({
+          sql: "INSERT INTO odev_logs (student_id, class_id, type, delta) VALUES (?, ?, ?, ?)",
+          args: [st.id, classKey, type, delta]
+        });
+      }
 
       const data = await getFullData();
       return sendJSON(res, { success: true, data });
@@ -407,17 +577,88 @@ module.exports = async (req, res) => {
     // POST /api/score/test
     if (pathname.endsWith('/score/test') && req.method === 'POST') {
       const { classKey, studentName, delta } = await parseBody(req);
-      const studentRes = await db.execute({
-        sql: "SELECT * FROM students WHERE class_id = ? AND name = ?",
-        args: [classKey, studentName]
-      });
-      if (studentRes.rows.length === 0) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
 
-      const st = studentRes.rows[0];
-      await db.execute({
-        sql: "INSERT INTO test_logs (student_id, class_id, points) VALUES (?, ?, ?)",
-        args: [st.id, classKey, delta]
-      });
+      if (useSupabase) {
+        const { data: st } = await supabase.from('students').select('id').eq('class_id', classKey).eq('name', studentName).maybeSingle();
+        if (!st) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
+
+        await supabase.from('test_logs').insert({ student_id: st.id, class_id: classKey, points: delta });
+      } else {
+        const studentRes = await libsql.execute({
+          sql: "SELECT * FROM students WHERE class_id = ? AND name = ?",
+          args: [classKey, studentName]
+        });
+        if (studentRes.rows.length === 0) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
+
+        const st = studentRes.rows[0];
+        await libsql.execute({
+          sql: "INSERT INTO test_logs (student_id, class_id, points) VALUES (?, ?, ?)",
+          args: [st.id, classKey, delta]
+        });
+      }
+
+      const data = await getFullData();
+      return sendJSON(res, { success: true, data });
+    }
+
+    // POST /api/score/undo
+    if (pathname.endsWith('/score/undo') && req.method === 'POST') {
+      const { classKey, studentName, type } = await parseBody(req);
+
+      if (useSupabase) {
+        const { data: st } = await supabase.from('students').select('id').eq('class_id', classKey).eq('name', studentName).maybeSingle();
+        if (!st) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
+
+        const table = type === 'dersici' ? 'ders_ici_logs' : (type === 'odev' ? 'odev_logs' : (type === 'test' ? 'test_logs' : null));
+        if (table) {
+          const { data: lastLog } = await supabase.from(table).select('id').eq('student_id', st.id).eq('class_id', classKey).order('id', { ascending: false }).limit(1).maybeSingle();
+          if (lastLog) {
+            await supabase.from(table).delete().eq('id', lastLog.id);
+          }
+        }
+      } else {
+        const studentRes = await libsql.execute({
+          sql: "SELECT * FROM students WHERE class_id = ? AND name = ?",
+          args: [classKey, studentName]
+        });
+        if (studentRes.rows.length === 0) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
+        const st = studentRes.rows[0];
+
+        if (type === 'dersici') {
+          const lastLog = await libsql.execute({
+            sql: "SELECT id FROM ders_ici_logs WHERE student_id = ? AND class_id = ? ORDER BY id DESC LIMIT 1",
+            args: [st.id, classKey]
+          });
+          if (lastLog.rows.length > 0) {
+            await libsql.execute({
+              sql: "DELETE FROM ders_ici_logs WHERE id = ?",
+              args: [lastLog.rows[0].id]
+            });
+          }
+        } else if (type === 'odev') {
+          const lastLog = await libsql.execute({
+            sql: "SELECT id FROM odev_logs WHERE student_id = ? AND class_id = ? ORDER BY id DESC LIMIT 1",
+            args: [st.id, classKey]
+          });
+          if (lastLog.rows.length > 0) {
+            await libsql.execute({
+              sql: "DELETE FROM odev_logs WHERE id = ?",
+              args: [lastLog.rows[0].id]
+            });
+          }
+        } else if (type === 'test') {
+          const lastLog = await libsql.execute({
+            sql: "SELECT id FROM test_logs WHERE student_id = ? AND class_id = ? ORDER BY id DESC LIMIT 1",
+            args: [st.id, classKey]
+          });
+          if (lastLog.rows.length > 0) {
+            await libsql.execute({
+              sql: "DELETE FROM test_logs WHERE id = ?",
+              args: [lastLog.rows[0].id]
+            });
+          }
+        }
+      }
 
       const data = await getFullData();
       return sendJSON(res, { success: true, data });
@@ -426,23 +667,39 @@ module.exports = async (req, res) => {
     // POST /api/draw
     if (pathname.endsWith('/draw') && req.method === 'POST') {
       const { classKey, studentName, autoRemove } = await parseBody(req);
-      const studentRes = await db.execute({
-        sql: "SELECT * FROM students WHERE class_id = ? AND name = ?",
-        args: [classKey, studentName]
-      });
-      if (studentRes.rows.length === 0) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
 
-      const st = studentRes.rows[0];
-      await db.execute({
-        sql: "INSERT INTO draw_history (student_id, class_id, student_name) VALUES (?, ?, ?)",
-        args: [st.id, classKey, studentName]
-      });
+      if (useSupabase) {
+        const { data: st } = await supabase.from('students').select('id').eq('class_id', classKey).eq('name', studentName).maybeSingle();
+        if (!st) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
 
-      if (autoRemove) {
-        await db.execute({
-          sql: "UPDATE students SET in_pool = 0 WHERE id = ?",
-          args: [st.id]
+        await supabase.from('draw_history').insert({
+          student_id: st.id,
+          class_id: classKey,
+          student_name: studentName
         });
+
+        if (autoRemove) {
+          await supabase.from('students').update({ in_pool: 0 }).eq('id', st.id);
+        }
+      } else {
+        const studentRes = await libsql.execute({
+          sql: "SELECT * FROM students WHERE class_id = ? AND name = ?",
+          args: [classKey, studentName]
+        });
+        if (studentRes.rows.length === 0) return sendJSON(res, { success: false, error: "Öğrenci bulunamadı" }, 404);
+
+        const st = studentRes.rows[0];
+        await libsql.execute({
+          sql: "INSERT INTO draw_history (student_id, class_id, student_name) VALUES (?, ?, ?)",
+          args: [st.id, classKey, studentName]
+        });
+
+        if (autoRemove) {
+          await libsql.execute({
+            sql: "UPDATE students SET in_pool = 0 WHERE id = ?",
+            args: [st.id]
+          });
+        }
       }
 
       const data = await getFullData();
@@ -452,10 +709,16 @@ module.exports = async (req, res) => {
     // POST /api/pool/remove
     if (pathname.endsWith('/pool/remove') && req.method === 'POST') {
       const { classKey, studentName } = await parseBody(req);
-      await db.execute({
-        sql: "UPDATE students SET in_pool = 0 WHERE class_id = ? AND name = ?",
-        args: [classKey, studentName]
-      });
+
+      if (useSupabase) {
+        await supabase.from('students').update({ in_pool: 0 }).eq('class_id', classKey).eq('name', studentName);
+      } else {
+        await libsql.execute({
+          sql: "UPDATE students SET in_pool = 0 WHERE class_id = ? AND name = ?",
+          args: [classKey, studentName]
+        });
+      }
+
       const data = await getFullData();
       return sendJSON(res, { success: true, data });
     }
@@ -463,14 +726,21 @@ module.exports = async (req, res) => {
     // POST /api/pool/reset
     if (pathname.endsWith('/pool/reset') && req.method === 'POST') {
       const { classKey } = await parseBody(req);
-      await db.execute({
-        sql: "UPDATE students SET in_pool = 1 WHERE class_id = ?",
-        args: [classKey]
-      });
-      await db.execute({
-        sql: "DELETE FROM draw_history WHERE class_id = ?",
-        args: [classKey]
-      });
+
+      if (useSupabase) {
+        await supabase.from('students').update({ in_pool: 1 }).eq('class_id', classKey);
+        await supabase.from('draw_history').delete().eq('class_id', classKey);
+      } else {
+        await libsql.execute({
+          sql: "UPDATE students SET in_pool = 1 WHERE class_id = ?",
+          args: [classKey]
+        });
+        await libsql.execute({
+          sql: "DELETE FROM draw_history WHERE class_id = ?",
+          args: [classKey]
+        });
+      }
+
       const data = await getFullData();
       return sendJSON(res, { success: true, data });
     }
@@ -478,13 +748,25 @@ module.exports = async (req, res) => {
     // POST /api/scores/reset
     if (pathname.endsWith('/scores/reset') && req.method === 'POST') {
       const { classKey, type } = await parseBody(req);
-      if (type === 'dersici') {
-        await db.execute({ sql: "DELETE FROM ders_ici_logs WHERE class_id = ?", args: [classKey] });
-      } else if (type === 'odev') {
-        await db.execute({ sql: "DELETE FROM odev_logs WHERE class_id = ?", args: [classKey] });
-      } else if (type === 'test') {
-        await db.execute({ sql: "DELETE FROM test_logs WHERE class_id = ?", args: [classKey] });
+
+      if (useSupabase) {
+        if (type === 'dersici') {
+          await supabase.from('ders_ici_logs').delete().eq('class_id', classKey);
+        } else if (type === 'odev') {
+          await supabase.from('odev_logs').delete().eq('class_id', classKey);
+        } else if (type === 'test') {
+          await supabase.from('test_logs').delete().eq('class_id', classKey);
+        }
+      } else {
+        if (type === 'dersici') {
+          await libsql.execute({ sql: "DELETE FROM ders_ici_logs WHERE class_id = ?", args: [classKey] });
+        } else if (type === 'odev') {
+          await libsql.execute({ sql: "DELETE FROM odev_logs WHERE class_id = ?", args: [classKey] });
+        } else if (type === 'test') {
+          await libsql.execute({ sql: "DELETE FROM test_logs WHERE class_id = ?", args: [classKey] });
+        }
       }
+
       const data = await getFullData();
       return sendJSON(res, { success: true, data });
     }
@@ -494,13 +776,26 @@ module.exports = async (req, res) => {
       const { classKey, names } = await parseBody(req);
       if (!Array.isArray(names)) return sendJSON(res, { success: false, error: "Geçersiz format" }, 400);
 
-      await db.execute({ sql: "DELETE FROM students WHERE class_id = ?", args: [classKey] });
-      for (let idx = 0; idx < names.length; idx++) {
-        if (names[idx] && names[idx].trim()) {
-          await db.execute({
-            sql: "INSERT INTO students (class_id, name, in_pool, sort_order) VALUES (?, ?, 1, ?)",
-            args: [classKey, names[idx].trim(), idx]
-          });
+      if (useSupabase) {
+        await supabase.from('students').delete().eq('class_id', classKey);
+        const rows = names.filter(n => n && n.trim()).map((n, idx) => ({
+          class_id: classKey,
+          name: n.trim(),
+          in_pool: 1,
+          sort_order: idx
+        }));
+        if (rows.length > 0) {
+          await supabase.from('students').insert(rows);
+        }
+      } else {
+        await libsql.execute({ sql: "DELETE FROM students WHERE class_id = ?", args: [classKey] });
+        for (let idx = 0; idx < names.length; idx++) {
+          if (names[idx] && names[idx].trim()) {
+            await libsql.execute({
+              sql: "INSERT INTO students (class_id, name, in_pool, sort_order) VALUES (?, ?, 1, ?)",
+              args: [classKey, names[idx].trim(), idx]
+            });
+          }
         }
       }
 
@@ -513,76 +808,169 @@ module.exports = async (req, res) => {
       const { backupData } = await parseBody(req);
       if (!backupData || !backupData.classes) return sendJSON(res, { success: false, error: "Geçersiz yedek" }, 400);
 
-      await db.execute("DELETE FROM draw_history;");
-      await db.execute("DELETE FROM ders_ici_logs;");
-      await db.execute("DELETE FROM odev_logs;");
-      await db.execute("DELETE FROM test_logs;");
-      await db.execute("DELETE FROM students;");
+      if (useSupabase) {
+        await supabase.from('draw_history').delete().neq('id', 0);
+        await supabase.from('ders_ici_logs').delete().neq('id', 0);
+        await supabase.from('odev_logs').delete().neq('id', 0);
+        await supabase.from('test_logs').delete().neq('id', 0);
+        await supabase.from('students').delete().neq('id', 0);
 
-      for (const clsKey of ['6', '7', '8']) {
-        const cls = backupData.classes[clsKey];
-        if (cls && cls.full) {
-          const studentIdMap = {};
-          for (let idx = 0; idx < cls.full.length; idx++) {
-            const name = cls.full[idx];
-            const inPool = (cls.remaining && cls.remaining.includes(name)) ? 1 : 0;
-            const res = await db.execute({
-              sql: "INSERT INTO students (class_id, name, in_pool, sort_order) VALUES (?, ?, ?, ?)",
-              args: [clsKey, name, inPool, idx]
-            });
-            studentIdMap[name] = Number(res.lastInsertRowid);
-          }
+        for (const clsKey of ['6', '7', '8']) {
+          const cls = backupData.classes[clsKey];
+          if (cls && cls.full) {
+            const studentIdMap = {};
+            for (let idx = 0; idx < cls.full.length; idx++) {
+              const name = cls.full[idx];
+              const inPool = (cls.remaining && cls.remaining.includes(name)) ? 1 : 0;
+              const { data: stRow } = await supabase.from('students').insert({
+                class_id: clsKey,
+                name: name,
+                in_pool: inPool,
+                sort_order: idx
+              }).select('id').single();
+              if (stRow) studentIdMap[name] = stRow.id;
+            }
 
-          if (cls.tokens) {
-            for (const name of Object.keys(cls.tokens)) {
-              const sid = studentIdMap[name];
-              if (sid) {
-                for (const tok of cls.tokens[name]) {
-                  await db.execute({
-                    sql: "INSERT INTO ders_ici_logs (student_id, class_id, type, delta) VALUES (?, ?, ?, ?)",
-                    args: [sid, clsKey, tok, tok === '+' ? 1 : -1]
-                  });
+            if (cls.tokens) {
+              const dersRows = [];
+              for (const name of Object.keys(cls.tokens)) {
+                const sid = studentIdMap[name];
+                if (sid) {
+                  for (const tok of cls.tokens[name]) {
+                    dersRows.push({
+                      student_id: sid,
+                      class_id: clsKey,
+                      type: tok,
+                      delta: tok === '+' ? 1 : -1
+                    });
+                  }
                 }
               }
+              if (dersRows.length > 0) await supabase.from('ders_ici_logs').insert(dersRows);
             }
-          }
 
-          if (cls.hwTokens) {
-            for (const name of Object.keys(cls.hwTokens)) {
-              const sid = studentIdMap[name];
-              if (sid) {
-                for (const tok of cls.hwTokens[name]) {
-                  await db.execute({
-                    sql: "INSERT INTO odev_logs (student_id, class_id, type, delta) VALUES (?, ?, ?, ?)",
-                    args: [sid, clsKey, tok, tok === '+' ? 1 : -1]
-                  });
+            if (cls.hwTokens) {
+              const odevRows = [];
+              for (const name of Object.keys(cls.hwTokens)) {
+                const sid = studentIdMap[name];
+                if (sid) {
+                  for (const tok of cls.hwTokens[name]) {
+                    odevRows.push({
+                      student_id: sid,
+                      class_id: clsKey,
+                      type: tok,
+                      delta: tok === '+' ? 1 : -1
+                    });
+                  }
                 }
               }
+              if (odevRows.length > 0) await supabase.from('odev_logs').insert(odevRows);
             }
-          }
 
-          if (cls.testTokens) {
-            for (const name of Object.keys(cls.testTokens)) {
-              const sid = studentIdMap[name];
-              if (sid) {
-                for (const tok of cls.testTokens[name]) {
-                  const pts = parseInt(tok, 10) || 0;
-                  await db.execute({
-                    sql: "INSERT INTO test_logs (student_id, class_id, points) VALUES (?, ?, ?)",
-                    args: [sid, clsKey, pts]
-                  });
+            if (cls.testTokens) {
+              const testRows = [];
+              for (const name of Object.keys(cls.testTokens)) {
+                const sid = studentIdMap[name];
+                if (sid) {
+                  for (const tok of cls.testTokens[name]) {
+                    const pts = parseInt(tok, 10) || 0;
+                    testRows.push({
+                      student_id: sid,
+                      class_id: clsKey,
+                      points: pts
+                    });
+                  }
                 }
               }
+              if (testRows.length > 0) await supabase.from('test_logs').insert(testRows);
+            }
+
+            if (cls.history) {
+              const histRows = [];
+              for (const h of cls.history) {
+                const sid = studentIdMap[h.name] || 0;
+                histRows.push({
+                  student_id: sid,
+                  class_id: clsKey,
+                  student_name: h.name
+                });
+              }
+              if (histRows.length > 0) await supabase.from('draw_history').insert(histRows);
             }
           }
+        }
+      } else {
+        await libsql.execute("DELETE FROM draw_history;");
+        await libsql.execute("DELETE FROM ders_ici_logs;");
+        await libsql.execute("DELETE FROM odev_logs;");
+        await libsql.execute("DELETE FROM test_logs;");
+        await libsql.execute("DELETE FROM students;");
 
-          if (cls.history) {
-            for (const h of cls.history) {
-              const sid = studentIdMap[h.name] || 0;
-              await db.execute({
-                sql: "INSERT INTO draw_history (student_id, class_id, student_name) VALUES (?, ?, ?)",
-                args: [sid, clsKey, h.name]
+        for (const clsKey of ['6', '7', '8']) {
+          const cls = backupData.classes[clsKey];
+          if (cls && cls.full) {
+            const studentIdMap = {};
+            for (let idx = 0; idx < cls.full.length; idx++) {
+              const name = cls.full[idx];
+              const inPool = (cls.remaining && cls.remaining.includes(name)) ? 1 : 0;
+              const res = await libsql.execute({
+                sql: "INSERT INTO students (class_id, name, in_pool, sort_order) VALUES (?, ?, ?, ?)",
+                args: [clsKey, name, inPool, idx]
               });
+              studentIdMap[name] = Number(res.lastInsertRowid);
+            }
+
+            if (cls.tokens) {
+              for (const name of Object.keys(cls.tokens)) {
+                const sid = studentIdMap[name];
+                if (sid) {
+                  for (const tok of cls.tokens[name]) {
+                    await libsql.execute({
+                      sql: "INSERT INTO ders_ici_logs (student_id, class_id, type, delta) VALUES (?, ?, ?, ?)",
+                      args: [sid, clsKey, tok, tok === '+' ? 1 : -1]
+                    });
+                  }
+                }
+              }
+            }
+
+            if (cls.hwTokens) {
+              for (const name of Object.keys(cls.hwTokens)) {
+                const sid = studentIdMap[name];
+                if (sid) {
+                  for (const tok of cls.hwTokens[name]) {
+                    await libsql.execute({
+                      sql: "INSERT INTO odev_logs (student_id, class_id, type, delta) VALUES (?, ?, ?, ?)",
+                      args: [sid, clsKey, tok, tok === '+' ? 1 : -1]
+                    });
+                  }
+                }
+              }
+            }
+
+            if (cls.testTokens) {
+              for (const name of Object.keys(cls.testTokens)) {
+                const sid = studentIdMap[name];
+                if (sid) {
+                  for (const tok of cls.testTokens[name]) {
+                    const pts = parseInt(tok, 10) || 0;
+                    await libsql.execute({
+                      sql: "INSERT INTO test_logs (student_id, class_id, points) VALUES (?, ?, ?)",
+                      args: [sid, clsKey, pts]
+                    });
+                  }
+                }
+              }
+            }
+
+            if (cls.history) {
+              for (const h of cls.history) {
+                const sid = studentIdMap[h.name] || 0;
+                await libsql.execute({
+                  sql: "INSERT INTO draw_history (student_id, class_id, student_name) VALUES (?, ?, ?)",
+                  args: [sid, clsKey, h.name]
+                });
+              }
             }
           }
         }

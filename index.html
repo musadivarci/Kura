@@ -387,15 +387,19 @@
                   <span id="cardScoreNet" class="font-bold font-mono text-emerald-400">Net: 0</span>
                 </div>
 
-                <!-- ONLY Ders İçi + / - scoring buttons -->
-                <div class="flex items-center justify-center gap-3 w-full max-w-xs pt-1">
-                  <button onclick="addPointToDrawn(1)" class="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50 active:scale-95 group">
+                <!-- ONLY Ders İçi + / - scoring buttons & Undo -->
+                <div class="flex items-center justify-center gap-2 w-full max-w-sm pt-1">
+                  <button onclick="addPointToDrawn(1)" class="flex-1 py-3 px-3 sm:px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg shadow-emerald-950/50 active:scale-95 group">
                     <i class="fa-solid fa-plus text-emerald-200 group-hover:scale-125 transition-transform"></i>
                     <span>Artı (+1)</span>
                   </button>
-                  <button onclick="addPointToDrawn(-1)" class="flex-1 py-3 px-4 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 shadow-lg shadow-rose-950/50 active:scale-95 group">
+                  <button onclick="addPointToDrawn(-1)" class="flex-1 py-3 px-3 sm:px-4 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg shadow-rose-950/50 active:scale-95 group">
                     <i class="fa-solid fa-minus text-rose-200 group-hover:scale-125 transition-transform"></i>
                     <span>Eksi (-1)</span>
+                  </button>
+                  <button onclick="undoDrawnPoint()" id="drawnUndoBtn" class="py-3 px-3 sm:px-4 bg-slate-800 hover:bg-amber-950/60 text-slate-300 hover:text-amber-300 border border-slate-700 hover:border-amber-500/40 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 shadow-md active:scale-95" title="Son verilen puanı geri al">
+                    <i class="fa-solid fa-rotate-left text-amber-400"></i>
+                    <span class="hidden sm:inline">Geri Al</span>
                   </button>
                 </div>
 
@@ -559,7 +563,7 @@
               <th class="p-3.5">Öğrenci Adı</th>
               <th class="p-3.5">Artı / Eksi Simgeleri (+ / -)</th>
               <th class="p-3.5 text-center w-28">Net Puan</th>
-              <th class="p-3.5 text-right w-36">Puan Ver</th>
+              <th class="p-3.5 text-right w-44">Puan Ver</th>
             </tr>
           </thead>
           <tbody id="dersiciTableBody" class="divide-y divide-slate-800/80"></tbody>
@@ -627,7 +631,7 @@
               <th class="p-3.5">Öğrenci Adı</th>
               <th class="p-3.5">Ödev Artı / Eksi Simgeleri (+ / -)</th>
               <th class="p-3.5 text-center w-28">Net Puan</th>
-              <th class="p-3.5 text-right w-36">Ödev Notu Ver</th>
+              <th class="p-3.5 text-right w-44">Ödev Notu Ver</th>
             </tr>
           </thead>
           <tbody id="odevTableBody" class="divide-y divide-slate-800/80"></tbody>
@@ -693,7 +697,7 @@
               <th class="p-3.5">Öğrenci Adı</th>
               <th class="p-3.5">Alınan Puanlar Geçmişi</th>
               <th class="p-3.5 text-center w-28">Toplam Puan</th>
-              <th class="p-3.5 text-right w-52">Puan Ver (3, 2, 1)</th>
+              <th class="p-3.5 text-right w-60">Puan Ver (3, 2, 1)</th>
             </tr>
           </thead>
           <tbody id="testTableBody" class="divide-y divide-slate-800/80"></tbody>
@@ -1047,6 +1051,23 @@
         osc.stop(audioCtx.currentTime + 0.25);
       } catch (e) {}
     }
+
+    function playUndoSound() {
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(220, audioCtx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.18);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.18);
+      } catch (e) {}
+    }
   </script>
 
   <!-- ==================== AUTH SERVICE & CENTRAL DATABASE (SQLite BACKEND) ==================== -->
@@ -1345,6 +1366,7 @@
         }
       },
       isOnline: true,
+      dbType: 'local',
 
       async init(onReady) {
         try {
@@ -1356,28 +1378,42 @@
             const json = await res.json();
             if (json.success && json.data && json.data.classes) {
               this.data = json.data;
-              this.setConnected(true);
+              this.dbType = json.dbType || 'local';
+              this.setConnected(true, this.dbType);
             }
           } else {
             this.setConnected(false);
           }
         } catch (e) {
-          console.warn("SQLite API bağlantı uyarısı:", e);
+          console.warn("Veritabanı API bağlantı uyarısı:", e);
           this.setConnected(false);
         }
+
         if (typeof onReady === 'function') onReady();
       },
 
-      setConnected(status) {
+      setConnected(status, type = this.dbType) {
         this.isOnline = status;
         const badge = document.getElementById('dbStatusBadge');
         if (badge) {
           if (status) {
-            badge.className = "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-bold text-emerald-400 shadow-sm";
-            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span class="hidden sm:inline">SQLite Aktif</span>`;
+            if (type === 'supabase') {
+              badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-[11px] font-bold text-emerald-300 shadow-sm";
+              badge.title = "Supabase Bulut Veritabanı Aktif (Kalıcı & Senkronize)";
+              badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span class="hidden sm:inline">Supabase Bulut</span>`;
+            } else if (type === 'turso' || type === 'cloud') {
+              badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 shadow-sm";
+              badge.title = "Bulut Veritabanı Aktif (Vercel & Yerel Senkronize)";
+              badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span><span class="hidden sm:inline">Bulut VT Aktif</span>`;
+            } else {
+              badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-950/60 border border-indigo-500/30 text-[11px] font-bold text-indigo-300 shadow-sm";
+              badge.title = "Yerel SQLite Veritabanı (kura.db)";
+              badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span><span class="hidden sm:inline">Yerel SQLite</span>`;
+            }
           } else {
-            badge.className = "inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-950/60 border border-rose-500/30 text-[11px] font-bold text-rose-400 shadow-sm";
-            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span><span class="hidden sm:inline">Sunucu Bağlantısı Yok</span>`;
+            badge.className = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-950/60 border border-rose-500/30 text-[11px] font-bold text-rose-400 shadow-sm";
+            badge.title = "Sunucuya bağlanılamadı";
+            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span><span class="hidden sm:inline">Bağlantı Yok</span>`;
           }
         }
       },
@@ -1531,6 +1567,64 @@
             headers: AuthService.getHeaders(),
             credentials: 'include',
             body: JSON.stringify({ classKey, studentName: name, delta })
+          });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data) {
+              this.data = json.data;
+              this.setConnected(true);
+            }
+          }
+        } catch (e) {
+          this.setConnected(false);
+        }
+      },
+
+      // Puan Geri Al (Undo - Ders İçi, Ödev veya Test)
+      async undoScore(classKey, name, type = 'dersici') {
+        const cls = this.getClass(classKey);
+        if (type === 'dersici') {
+          const sc = this.getScore(classKey, name);
+          const tokens = this.getTokens(classKey, name);
+          if (tokens.length > 0) {
+            const lastToken = tokens.pop();
+            if (lastToken === '+') sc.plus = Math.max(0, sc.plus - 1);
+            else if (lastToken === '-') sc.minus = Math.max(0, sc.minus - 1);
+            playUndoSound();
+          } else {
+            return;
+          }
+        } else if (type === 'odev') {
+          const sc = this.getHwScore(classKey, name);
+          const tokens = this.getHwTokens(classKey, name);
+          if (tokens.length > 0) {
+            const lastToken = tokens.pop();
+            if (lastToken === '+') sc.plus = Math.max(0, sc.plus - 1);
+            else if (lastToken === '-') sc.minus = Math.max(0, sc.minus - 1);
+            playUndoSound();
+          } else {
+            return;
+          }
+        } else if (type === 'test') {
+          const tokens = this.getTestTokens(classKey, name);
+          if (tokens.length > 0) {
+            const lastToken = tokens.pop();
+            const pts = parseInt(lastToken, 10) || 0;
+            if (cls.testScores && cls.testScores[name] !== undefined) {
+              cls.testScores[name] -= pts;
+            }
+            playUndoSound();
+          } else {
+            return;
+          }
+        }
+
+        try {
+          const res = await fetch('/api/score/undo', {
+            method: 'POST',
+            headers: AuthService.getHeaders(),
+            credentials: 'include',
+            body: JSON.stringify({ classKey, studentName: name, type })
           });
           if (res.ok) {
             const json = await res.json();
@@ -1883,6 +1977,9 @@
               <button onclick="handleKuraScoreChange('${item.name}', -1)" class="w-7 h-7 rounded-lg bg-rose-950/80 border border-rose-500/30 hover:bg-rose-600 text-rose-300 hover:text-white flex items-center justify-center text-xs font-bold transition" title="Eksi Ekle (-1)">
                 <i class="fa-solid fa-minus text-[10px]"></i>
               </button>
+              <button onclick="handleKuraUndo('${item.name}')" class="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 hover:bg-amber-950/60 text-slate-400 hover:text-amber-300 flex items-center justify-center text-xs font-bold transition ${tokens.length === 0 ? 'opacity-40 cursor-not-allowed' : ''}" title="Son Puanı Geri Al" ${tokens.length === 0 ? 'disabled' : ''}>
+                <i class="fa-solid fa-rotate-left text-[10px]"></i>
+              </button>
               <span class="min-w-[36px] text-center px-1.5 py-0.5 rounded text-[11px] font-bold font-mono ${net > 0 ? 'badge-pos' : (net < 0 ? 'badge-neg' : 'badge-zero')}">
                 ${net > 0 ? '+' + net : net}
               </span>
@@ -2054,6 +2151,18 @@
         netEl.className = net > 0 ? "font-bold font-mono text-emerald-400" : (net < 0 ? "font-bold font-mono text-rose-400" : "font-bold font-mono text-slate-300");
       }
 
+      // Update Geri Al button state
+      const undoBtn = document.getElementById('drawnUndoBtn');
+      if (undoBtn) {
+        if (!tokens || tokens.length === 0) {
+          undoBtn.classList.add('opacity-40', 'cursor-not-allowed');
+          undoBtn.disabled = true;
+        } else {
+          undoBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+          undoBtn.disabled = false;
+        }
+      }
+
       // Star badge if earned in tests
       const tTokens = DBService.getTestTokens(activeClass, studentName);
       const stars = tTokens.filter(t => t === '+3' || t === 3 || String(t).includes('3')).length;
@@ -2077,8 +2186,21 @@
       updateDrawUI();
     }
 
+    function undoDrawnPoint() {
+      if (!currentDrawnStudent) return;
+      DBService.undoScore(activeClass, currentDrawnStudent, 'dersici');
+      updateDrawnCardScore(currentDrawnStudent);
+      updateDrawUI();
+    }
+
     function handleKuraScoreChange(studentName, delta) {
       DBService.updateScore(activeClass, studentName, delta);
+      if (currentDrawnStudent === studentName) updateDrawnCardScore(studentName);
+      updateDrawUI();
+    }
+
+    function handleKuraUndo(studentName) {
+      DBService.undoScore(activeClass, studentName, 'dersici');
       if (currentDrawnStudent === studentName) updateDrawnCardScore(studentName);
       updateDrawUI();
     }
@@ -2166,6 +2288,9 @@
               <button onclick="handleDersIciScoreChange('${name}', -1)" class="w-8 h-8 rounded-lg bg-rose-950/80 border border-rose-500/40 hover:bg-rose-600 text-rose-300 hover:text-white flex items-center justify-center font-bold text-xs transition active:scale-95" title="-1 Eksi">
                 <i class="fa-solid fa-minus text-xs"></i>
               </button>
+              <button onclick="handleDersIciUndo('${name}')" class="w-8 h-8 rounded-lg bg-slate-800/90 border border-slate-700 hover:bg-amber-950/60 text-slate-400 hover:text-amber-300 flex items-center justify-center font-bold text-xs transition active:scale-95 ${tokens.length === 0 ? 'opacity-40 cursor-not-allowed' : ''}" title="Son Puanı Geri Al" ${tokens.length === 0 ? 'disabled' : ''}>
+                <i class="fa-solid fa-rotate-left text-xs"></i>
+              </button>
             </div>
           </td>
         `;
@@ -2175,6 +2300,12 @@
 
     function handleDersIciScoreChange(studentName, delta) {
       DBService.updateScore(activeClass, studentName, delta);
+      renderDersIciTable();
+      updateDrawUI();
+    }
+
+    function handleDersIciUndo(studentName) {
+      DBService.undoScore(activeClass, studentName, 'dersici');
       renderDersIciTable();
       updateDrawUI();
     }
@@ -2248,6 +2379,9 @@
               <button onclick="handleOdevScoreChange('${name}', -1)" class="w-8 h-8 rounded-lg bg-rose-950/80 border border-rose-500/40 hover:bg-rose-600 text-rose-300 hover:text-white flex items-center justify-center font-bold text-xs transition active:scale-95" title="-1 Eksi (Ödev Yapmadı)">
                 <i class="fa-solid fa-minus text-xs"></i>
               </button>
+              <button onclick="handleOdevUndo('${name}')" class="w-8 h-8 rounded-lg bg-slate-800/90 border border-slate-700 hover:bg-amber-950/60 text-slate-400 hover:text-amber-300 flex items-center justify-center font-bold text-xs transition active:scale-95 ${tokens.length === 0 ? 'opacity-40 cursor-not-allowed' : ''}" title="Son Ödev Notunu Geri Al" ${tokens.length === 0 ? 'disabled' : ''}>
+                <i class="fa-solid fa-rotate-left text-xs"></i>
+              </button>
             </div>
           </td>
         `;
@@ -2257,6 +2391,11 @@
 
     function handleOdevScoreChange(studentName, delta) {
       DBService.updateHwScore(activeClass, studentName, delta);
+      renderOdevTable();
+    }
+
+    function handleOdevUndo(studentName) {
+      DBService.undoScore(activeClass, studentName, 'odev');
       renderOdevTable();
     }
 
@@ -2335,6 +2474,9 @@
               <button onclick="handleTestScoreChange('${name}', -1)" class="w-7 h-8 rounded-lg bg-slate-900 border border-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 flex items-center justify-center font-bold text-xs transition active:scale-95" title="-1 Puan Azalt">
                 <i class="fa-solid fa-minus text-[10px]"></i>
               </button>
+              <button onclick="handleTestUndo('${name}')" class="w-8 h-8 rounded-lg bg-slate-800/90 border border-slate-700 hover:bg-amber-950/60 text-slate-400 hover:text-amber-300 flex items-center justify-center font-bold text-xs transition active:scale-95 ${tokens.length === 0 ? 'opacity-40 cursor-not-allowed' : ''}" title="Son Test Puanını Geri Al" ${tokens.length === 0 ? 'disabled' : ''}>
+                <i class="fa-solid fa-rotate-left text-xs"></i>
+              </button>
             </div>
           </td>
         `;
@@ -2344,6 +2486,11 @@
 
     function handleTestScoreChange(studentName, delta) {
       DBService.updateTestScore(activeClass, studentName, delta);
+      renderTestTable();
+    }
+
+    function handleTestUndo(studentName) {
+      DBService.undoScore(activeClass, studentName, 'test');
       renderTestTable();
     }
 

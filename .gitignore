@@ -9,3 +9,6 @@ kura.db-shm
 kura.db-wal
 
 .vercel
+.env
+.env.local
+.env*.local
